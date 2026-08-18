@@ -125,6 +125,12 @@ def build_features(
             if col not in feature_cols:
                 feature_cols.append(col)
     required = [*feature_cols, cfg.target]
+
+    # Le customer_id est conservé pour le traçage individuel des décisions (audit §M08),
+    # mais ne fait PAS partie des features du modèle.
+    if "customer_id" in df.columns and "customer_id" not in required:
+        required = ["customer_id", *required]
+
     missing = [c for c in required if c not in df.columns]
     if missing:
         raise ValueError(f"Colonnes manquantes après feature engineering : {missing}")

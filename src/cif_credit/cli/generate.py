@@ -7,6 +7,7 @@ import click
 from cif_credit.config import load_config
 from cif_credit.data.synthetic import generate_datasets, save_datasets
 from cif_credit.features.builder import build_features, save_features
+from cif_credit.models.train import feature_columns
 from cif_credit.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -37,6 +38,6 @@ def main(n_customers: int | None, default_rate: float | None, seed: int | None) 
         "cli.generate.done",
         raw=raw_paths,
         features=feat_path,
-        n_features=len(features.columns) - 1,
+        n_features=len(feature_columns(cfg.features)),
         default_rate=round(float(features[cfg.features.target].mean()), 4),
     )

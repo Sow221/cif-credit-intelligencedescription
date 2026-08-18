@@ -6,16 +6,17 @@ suivre le pattern de déploiement des cabinets : injection de dépendances expli
 
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 import mlflow
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from xgboost import XGBClassifier
 
 from cif_credit.config.schema import FeatureConfig
 from cif_credit.decision.engine import DecisionEngine, DecisionPolicy
@@ -42,14 +43,14 @@ def _risk_class(probability: float) -> str:
 class ModelContainer:
     """Conteneur du modèle chargé au runtime (injecté dans les handlers)."""
 
-    def __init__(self, model: XGBClassifier | None = None, cols: list[str] | None = None) -> None:
+    def __init__(self, model: Any | None = None, cols: list[str] | None = None) -> None:
         self.model = model
         self.cols = cols or feature_columns(FeatureConfig())
 
 
 def create_app(
     model_uri: str | None = None,
-    model: XGBClassifier | None = None,
+    model: Any | None = None,
     policy: DecisionPolicy | None = None,
     feature_columns_list: list[str] | None = None,
 ) -> FastAPI:
@@ -62,6 +63,8 @@ def create_app(
         feature_columns_list: liste ordonnée des features.
     """
     uri = model_uri or "models:/cif_credit_official/latest"
+    if model is None and os.environ.get("MLFLOW_TRACKING_URI"):
+        mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

@@ -24,6 +24,7 @@ logger = get_logger(__name__)
 def main(data: str | None, model_uri: str | None, out: str | None) -> None:
     """Applique le decision engine à un batch et trace chaque décision (audit §M08)."""
     cfg = load_config()
+    mlflow.set_tracking_uri(cfg.model.mlflow_tracking_uri)
     path = data or f"{cfg.data.processed_dir}/{cfg.features.output_file}"
     df = pd.read_parquet(path)
 

@@ -66,6 +66,15 @@ class FeatureConfig:
 
 
 @dataclass
+class CalibrationConfig:
+    """Configuration de la calibration des probabilités (exigence §93 du cahier des charges)."""
+
+    enabled: bool = True
+    method: str = "isotonic"
+    cv: int = 3
+
+
+@dataclass
 class ModelConfig:
     """Configuration de l'entraînement du modèle."""
 
@@ -88,6 +97,8 @@ class ModelConfig:
     artifacts_dir: str = "data/artifacts"
     mlflow_tracking_uri: str = "sqlite:///mlruns.db"
     mlflow_experiment: str = "cif_credit_intelligence"
+    # Calibration des probabilités (Isotonic via CalibratedClassifierCV)
+    calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
     # Familles de features utilisées pour l'ablation (M0 baseline, M1, M2, M3)
     ablation_families: list[str] = field(default_factory=lambda: ["profile_income", "savings", "history", "context"])
 

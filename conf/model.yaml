@@ -12,6 +12,10 @@ model:
     colsample_bytree: 0.8
     reg_lambda: 1.0
     scale_pos_weight: 1.0
+  calibration:
+    enabled: true
+    method: isotonic
+    cv: 3
   artifacts_dir: data/artifacts
   mlflow_tracking_uri: sqlite:///mlruns.db
   mlflow_experiment: cif_credit_intelligence

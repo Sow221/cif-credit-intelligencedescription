@@ -11,6 +11,7 @@ import mlflow
 import numpy as np
 import pandas as pd
 from mlflow.models import infer_signature
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 class TrainingResult:
     """Résultat d'un entraînement."""
 
-    model: XGBClassifier
+    model: Any
     metrics: dict[str, float]
     run_id: str | None = None
     params: dict[str, Any] = field(default_factory=dict)
@@ -57,16 +58,25 @@ def train_split(
     return X_tr, X_te, y_tr, y_te
 
 
-def make_model(cfg: ModelConfig, scale_pos_weight: float = 1.0) -> XGBClassifier:
-    """Instancie le modèle XGBoost avec les hyperparamètres de la config."""
+def make_model(cfg: ModelConfig, scale_pos_weight: float = 1.0) -> Any:
+    """Instancie le modèle XGBoost (calibré si activé) avec les hyperparamètres de la config."""
     hp = dict(cfg.xgboost)
     hp["scale_pos_weight"] = scale_pos_weight
-    return XGBClassifier(
+    base = XGBClassifier(
         **hp,
         random_state=cfg.random_state,
         eval_metric="aucpr",
-        early_stopping_rounds=30,
     )
+    if cfg.calibration.enabled:
+        # Calibration isotonique (exigence §93) : prédit des probabilités *bien calibrées*,
+        # comparables entre clients et exploitables par le decision engine.
+        return CalibratedClassifierCV(
+            estimator=base,
+            method=cfg.calibration.method,
+            cv=cfg.calibration.cv,
+            n_jobs=1,
+        )
+    return base
 
 
 def train_and_log(
@@ -89,11 +99,16 @@ def train_and_log(
 
     pos_weight = float((y_tr == 0).sum() / max((y_tr == 1).sum(), 1))
     model = make_model(model_cfg, scale_pos_weight=pos_weight)
-    model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
+    if model_cfg.calibration.enabled:
+        model.fit(X_tr, y_tr)
+    else:
+        model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
 
     probs = model.predict_proba(X_te)[:, 1]
     metrics = compute_all_metrics(y_te, probs)
     params: dict[str, Any] = {**model_cfg.xgboost, "scale_pos_weight": pos_weight, "test_size": model_cfg.test_size}
+    if model_cfg.calibration.enabled:
+        params["calibration"] = f"{model_cfg.calibration.method}-cv{model_cfg.calibration.cv}"
 
     with mlflow.start_run(experiment_id=experiment_id, run_name=run_name) as run:
         mlflow.log_params(params)
@@ -110,6 +125,8 @@ def train_and_log(
                 signature=signature,
                 input_example=X_te.iloc[:5],
                 registered_model_name="cif_credit_official" if register else None,
+                serialization_format="cloudpickle",
+                pip_requirements=["xgboost>=2.0", "scikit-learn>=1.4", "numpy>=1.26", "pandas>=2.1"],
             )
             feat_path = Path(model_cfg.artifacts_dir) / "feature_columns.json"
             feat_path.parent.mkdir(parents=True, exist_ok=True)
@@ -132,6 +149,9 @@ def train_plain(
     )
     pos_weight = float((y_tr == 0).sum() / max((y_tr == 1).sum(), 1))
     model = make_model(model_cfg, scale_pos_weight=pos_weight)
-    model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
+    if model_cfg.calibration.enabled:
+        model.fit(X_tr, y_tr)
+    else:
+        model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
     probs = model.predict_proba(X_te)[:, 1]
     return model, compute_all_metrics(y_te, probs)
