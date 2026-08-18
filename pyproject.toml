@@ -29,6 +29,9 @@ dependencies = [
     "pyjwt>=2.8",
     "matplotlib>=3.8",
     "structlog>=24.1",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg2-binary>=2.9",
 ]
 
 [project.optional-dependencies]
@@ -100,6 +103,7 @@ disable_error_code = ["import-untyped"]
 [[tool.mypy.overrides]]
 # Modules tiers sans types publiés (ou absents en environnement local) : analysés comme Any.
 module = [
+    "alembic.*",
     "evidently.*",
     "mlflow.*",
     "omegaconf.*",

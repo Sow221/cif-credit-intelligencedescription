@@ -41,6 +41,12 @@ pre-commit:
 	pre-commit install
 	pre-commit run --all-files
 
+db-migrate:
+	$(PY) -m alembic -c alembic.ini upgrade head
+
+db-migrate-sql:
+	$(PY) -m alembic -c alembic.ini upgrade head --sql
+
 stack:
 	docker compose -f infra/docker-compose.yml up -d --build
 

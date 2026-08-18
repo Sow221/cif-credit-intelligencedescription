@@ -83,3 +83,19 @@ monitoring et rollback. Voir `docs/` pour le détail et `traçabilité.md` du pr
 
 Phase 1 — Infrastructure (ce dépôt). Phase 2 — Reproduction du prototype synthétique.
 Phase 3 — Protocole données réelles CIF (shadow mode).
+
+## Avancement selon le plan du cabinet (retour.txt)
+
+| Semaine | Livrables | Statut |
+|---|---|---|
+| 1 — Repo & Fondations | Structure `src/config`, `src/features/definitions/` (25 contrats), settings Pydantic | ✅ `971deeb` |
+| 2 — API | `/v1/predict`, `/v1/auth/token`, JWT HS256, rate limiting, `X-Request-ID`, `extra="forbid"` | ✅ `030ece9` |
+| 3 — Base de données | `migrations/` (Alembic), `src/services/audit_service.py`, `src/services/predictor.py`, tables PostgreSQL 16 (customers, predictions, audit_log, model_versions) | ✅ |
+| 4 — MLflow + Monitoring | `src/models/train.py`, `src/models/model_card.py`, `src/monitoring/drift_report.py` | ⏳ |
+| 5 — Kubernetes + Terraform | `terraform/main.tf`, `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/ingress.yaml`, `docker/Dockerfile` | ⏳ |
+| 6 — CI/CD Canary | `.github/workflows/deploy.yml`, `k8s/rollback.yaml` | ⏳ |
+
+Base de données : le schéma (customers, predictions, audit_log, model_versions) est porté par
+`migrations/` (Alembic, cible PostgreSQL 16). En local/test, l'audit peut pointer sur SQLite
+(`CIF_DATABASE__URL=sqlite+pysqlite:///audit.db`) ; en production le `jsonb` natif PostgreSQL
+est utilisé. L'audit est activé automatiquement dès que `CIF_DATABASE__URL` est définie.

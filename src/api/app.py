@@ -22,7 +22,9 @@ from api.routes import router_plain, router_v1
 from config.schema import FeatureConfig
 from config.settings import get_settings
 from models.train import feature_columns
+from services.audit_service import AuditService
 from services.decision_engine import DecisionEngine, DecisionPolicy
+from services.predictor import Predictor
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -48,6 +50,7 @@ def create_app(
     jwt_secret: str | None = None,
     jwt_ttl_minutes: int = 60,
     rate_limiter: RateLimiter | None = None,
+    audit_service: AuditService | None = None,
 ) -> FastAPI:
     """Fabrique l'application FastAPI.
 
@@ -60,6 +63,8 @@ def create_app(
         jwt_secret: secret HS256 (défaut : settings Pydantic).
         jwt_ttl_minutes: durée de validité des jetons.
         rate_limiter: instance RateLimiter (tests) — défaut : settings.
+        audit_service: service d'audit (Semaine 3). Si ``None`` et que l'URL de la base
+            est fournie via ``CIF_DATABASE__URL``, il est construit automatiquement.
     """
     settings = get_settings()
     uri = model_uri or "models:/cif_credit_official/latest"
@@ -67,6 +72,8 @@ def create_app(
         mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 
     secret = jwt_secret or settings.jwt_secret.get_secret_value()
+    if audit_service is None and os.environ.get("CIF_DATABASE__URL"):
+        audit_service = AuditService(url=os.environ["CIF_DATABASE__URL"])
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -76,6 +83,11 @@ def create_app(
             container.model = mlflow.sklearn.load_model(uri)
         app.state.container = container
         app.state.engine = DecisionEngine(model=container.model, policy=policy or DecisionPolicy())
+        app.state.predictor = Predictor(
+            app.state.engine,
+            model_version=uri,
+            audit=audit_service,
+        )
         yield
 
     app = FastAPI(
@@ -91,6 +103,7 @@ def create_app(
     app.state.jwt_secret = secret
     app.state.jwt_ttl_minutes = jwt_ttl_minutes
     app.state.rate_limiter = rate_limiter or RateLimiter(settings.api.request_limits_rate_per_minute)
+    app.state.audit_service = audit_service
     app.state.start_time = _START_TIME
     app.state.model_version = uri
 
