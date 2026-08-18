@@ -1,7 +1,9 @@
 """API de scoring FastAPI — modèle servi depuis le registry MLflow, décision via le DecisionEngine.
 
+Assemblage exigé par le cabinet (Semaine 2) : ``app.py`` (fabrique), ``routes.py`` (endpoints),
+``schemas.py`` (Pydantic strict), ``middleware.py`` (request ID + rate limiting) et JWT.
 Le modèle est chargé **au démarrage** (lifespan), pas à l'import, pour rester testable et
-suivre le pattern de déploiement des cabinets : injection de dépendances explicite.
+suivre le pattern d'injection de dépendances explicite.
 """
 
 from __future__ import annotations
@@ -13,31 +15,19 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import mlflow
-import pandas as pd
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from fastapi import FastAPI
 
-from api.schemas import HealthResponse, ScoreRequest, ScoreResponse
+from api.middleware import RateLimiter, RequestIDMiddleware
+from api.routes import router_plain, router_v1
 from config.schema import FeatureConfig
+from config.settings import get_settings
 from models.train import feature_columns
-from monitoring.metrics import record_score
 from services.decision_engine import DecisionEngine, DecisionPolicy
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 _START_TIME = time.time()
-
-
-def _risk_class(probability: float) -> str:
-    if probability < 0.1:
-        return "faible"
-    if probability < 0.25:
-        return "moyen"
-    if probability < 0.5:
-        return "elevé"
-    return "critique"
 
 
 class ModelContainer:
@@ -53,6 +43,11 @@ def create_app(
     model: Any | None = None,
     policy: DecisionPolicy | None = None,
     feature_columns_list: list[str] | None = None,
+    *,
+    auth_enabled: bool = True,
+    jwt_secret: str | None = None,
+    jwt_ttl_minutes: int = 60,
+    rate_limiter: RateLimiter | None = None,
 ) -> FastAPI:
     """Fabrique l'application FastAPI.
 
@@ -61,10 +56,17 @@ def create_app(
         model: modèle sklearn directement injecté (pour les tests).
         policy: politique de décision.
         feature_columns_list: liste ordonnée des features.
+        auth_enabled: active/désactive l'authentification JWT (tests).
+        jwt_secret: secret HS256 (défaut : settings Pydantic).
+        jwt_ttl_minutes: durée de validité des jetons.
+        rate_limiter: instance RateLimiter (tests) — défaut : settings.
     """
+    settings = get_settings()
     uri = model_uri or "models:/cif_credit_official/latest"
     if model is None and os.environ.get("MLFLOW_TRACKING_URI"):
         mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
+
+    secret = jwt_secret or settings.jwt_secret.get_secret_value()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -82,64 +84,25 @@ def create_app(
         description="Service de scoring de crédit — CIF Digital Platform §M07. "
         "Les décisions ne sont pas contractuelles : human-in-the-loop obligatoire pour REVUE_HUMAINE.",
         lifespan=lifespan,
+        swagger_ui_parameters={"persistAuthorization": True},
     )
 
-    @app.get("/health", response_model=HealthResponse)
-    def health() -> HealthResponse:
-        return HealthResponse(
-            status="ok",
-            model_version=uri,
-            uptime_seconds=round(time.time() - _START_TIME, 2),
-        )
+    app.state.auth_enabled = auth_enabled
+    app.state.jwt_secret = secret
+    app.state.jwt_ttl_minutes = jwt_ttl_minutes
+    app.state.rate_limiter = rate_limiter or RateLimiter(settings.api.request_limits_rate_per_minute)
+    app.state.start_time = _START_TIME
+    app.state.model_version = uri
 
-    @app.get("/metrics")
-    def metrics() -> JSONResponse:
-        return JSONResponse(content=generate_latest().decode("utf-8"), media_type=CONTENT_TYPE_LATEST)
-
-    @app.post("/v1/score", response_model=ScoreResponse, response_model_exclude_none=True)
-    async def score(request: ScoreRequest) -> ScoreResponse:
-        container: ModelContainer = app.state.container
-        engine: DecisionEngine = app.state.engine
-        if container.model is None:
-            raise HTTPException(status_code=503, detail="Modèle non chargé")
-
-        start = time.perf_counter()
-        provided = set(request.features)
-        missing = set(container.cols) - provided
-        if missing:
-            raise HTTPException(status_code=422, detail=f"Features manquantes : {sorted(missing)}")
-
-        try:
-            feat_df = pd.DataFrame([request.features])[container.cols].astype(float)
-        except KeyError as exc:
-            raise HTTPException(status_code=422, detail=f"Feature inconnue : {exc}") from exc
-
-        proba = float(container.model.predict_proba(feat_df)[0, 1])
-        outcome = engine.decide(
-            probability=proba,
-            n_past_loans=request.n_past_loans,
-            customer_id=request.customer_id,
-        )
-
-        duration = time.perf_counter() - start
-        record_score(model_version="latest", probability=proba, duration_seconds=duration)
-
-        return ScoreResponse(
-            model_version=uri,
-            probability=proba,
-            score=outcome.score,
-            risk_class=_risk_class(proba),
-            decision=outcome.decision.value,
-            confidence=outcome.confidence,
-            factors={k: round(v, 6) for k, v in outcome.factors.items()},
-            policy_hit=outcome.policy_hit,
-        )
+    app.add_middleware(RequestIDMiddleware)
+    app.include_router(router_v1)
+    app.include_router(router_plain)
 
     return app
 
 
 def main() -> None:
-    """Point d'entrée CLI : uvicorn api.app:app."""
+    """Point d'entrée CLI : uvicorn api.app:create_app."""
     import uvicorn
 
     app = create_app()

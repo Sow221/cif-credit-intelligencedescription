@@ -30,7 +30,7 @@ def test_feature_columns_length():
 
 
 def test_api_health_and_score():
-    app = create_app(model=_stub_model())
+    app = create_app(model=_stub_model(), auth_enabled=False)
     with TestClient(app) as client:
         resp = client.get("/health")
         assert resp.status_code == 200
@@ -42,18 +42,30 @@ def test_api_health_and_score():
             "features": {c: 0.5 for c in cols},
             "n_past_loans": 2,
         }
-        resp = client.post("/v1/score", json=payload)
+        resp = client.post("/v1/predict", json=payload)
         assert resp.status_code == 200
         body = resp.json()
         assert 0.0 <= body["probability"] <= 1.0
         assert body["decision"] in {"APPROBATION", "AJUSTEMENT", "REVUE_HUMAINE", "REFUS"}
+        assert 0.0 <= body["confidence"] <= 1.0
 
 
 def test_api_rejects_missing_features():
-    app = create_app(model=_stub_model())
+    app = create_app(model=_stub_model(), auth_enabled=False)
     with TestClient(app) as client:
-        resp = client.post("/v1/score", json={"customer_id": 1, "features": {}, "n_past_loans": 0})
+        resp = client.post("/v1/predict", json={"customer_id": 1, "features": {}, "n_past_loans": 0})
         assert resp.status_code == 422
+
+
+def test_api_strict_schema_rejects_unknown_field():
+    app = create_app(model=_stub_model(), auth_enabled=False)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/predict",
+            json={"customer_id": 1, "features": {}, "n_past_loans": 0, "injected_field": 1},
+        )
+        assert resp.status_code == 422
+        assert "injected_field" in resp.text
 
 
 def _stub_model() -> XGBClassifier:

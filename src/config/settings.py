@@ -98,6 +98,7 @@ class Settings(BaseSettings):
         env_prefix="CIF_",
         env_file=".env",
         env_file_encoding="utf-8",
+        env_nested_delimiter="__",
         extra="forbid",
         validate_assignment=True,
     )
