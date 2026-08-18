@@ -1,0 +1,11 @@
+# Configuration des données (surcharge la structure par défaut)
+# Taux de défaut calibré sur le prototype : 11.83% (recherche dichotomique du journal de bord)
+data:
+  n_customers: 10000
+  n_savings_months: 24
+  max_past_loans: 5
+  default_rate: 0.1183
+  latent_factor_exponent: 3.0
+  seed: 42
+  raw_dir: data/raw
+  processed_dir: data/processed

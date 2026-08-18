@@ -1,0 +1,10 @@
+# Policy de décision (séparée du modèle — cahier des charges §64)
+decision:
+  approve_threshold: 0.10
+  review_threshold: 0.25
+  hard_reject_threshold: 0.50
+  cost_review: 5000.0
+  cost_false_negative: 300000.0
+  cost_false_positive: 50000.0
+  thin_file_review: true
+  thin_file_max_loans: 1

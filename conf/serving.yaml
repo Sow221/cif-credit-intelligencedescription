@@ -1,0 +1,7 @@
+# Configuration du service de scoring
+serving:
+  host: 0.0.0.0
+  port: 8000
+  model_uri: models:/cif_credit_official/latest
+  request_limits:
+    rate_per_minute: 120

@@ -1,0 +1,105 @@
+[project]
+name = "cif-credit-intelligence"
+version = "0.1.0"
+description = "CIF Credit Intelligence — plateforme de scoring de crédit pour l'écosystème CIF/DigiCoop-WA+"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "TELQAN / CIF Credit Intelligence" }]
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "pyarrow>=15.0",
+    "scikit-learn>=1.4",
+    "xgboost>=2.0",
+    "joblib>=1.3",
+    "scipy>=1.11",
+    "omegaconf>=2.3",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "mlflow>=2.11",
+    "dagster>=1.7",
+    "dagster-webserver>=1.7",
+    "evidently>=0.4.22",
+    "prometheus-client>=0.20",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
+    "matplotlib>=3.8",
+    "structlog>=24.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "pre-commit>=3.7",
+    "httpx>=0.27",
+]
+quality = [
+    "great-expectations>=0.18",
+]
+repro = [
+    "dvc>=3.0",
+]
+test = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+cif-generate = "cif_credit.cli.generate:main"
+cif-train = "cif_credit.cli.train:main"
+cif-evaluate = "cif_credit.cli.evaluate:main"
+cif-decision = "cif_credit.cli.decision:main"
+cif-api = "cif_credit.serving.api:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cif_credit = ["py.typed"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests", "pipelines"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+exclude = ["infra/", "docs/"]
+warn_unused_configs = true
+disallow_any_generics = false
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+# Modules tiers sans types publiés (ou absents en environnement local) : analysés comme Any.
+module = [
+    "evidently.*",
+    "mlflow.*",
+    "dagster.*",
+    "omegaconf.*",
+    "prometheus_client",
+    "structlog",
+    "sklearn.*",
+    "yaml",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=cif_credit --cov-report=term-missing"
+pythonpath = ["src"]

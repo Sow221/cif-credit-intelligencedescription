@@ -1,0 +1,16 @@
+# MLflow tracking server (backend : Postgres, artifacts : MinIO/S3)
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN python -m pip install --no-cache-dir "mlflow>=2.11" "psycopg2-binary" "boto3" "cloudpickle" "pillow" "numpy" "pandas" "scikit-learn" "xgboost"
+
+EXPOSE 5000
+
+CMD ["mlflow", "server", \
+     "--host", "0.0.0.0", \
+     "--port", "5000", \
+     "--backend-store-uri", "$BACKEND_STORE_URI", \
+     "--default-artifact-root", "$ARTIFACT_ROOT", \
+     "--serve-artifacts"]

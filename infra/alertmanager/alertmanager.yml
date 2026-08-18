@@ -1,0 +1,18 @@
+# Alertmanager — route des alertes ML (placeholder : canal webhook/email à configurer)
+route:
+  group_by: ["alertname", "team"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: "default"
+
+receivers:
+  - name: "default"
+    webhook_configs:
+      - url: "http://notification-sink:8080/hook"
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers: ["severity = critical"]
+    target_matchers: ["severity =~ warning|info"]
+    equal: ["alertname"]

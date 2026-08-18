@@ -1,0 +1,28 @@
+# Dagster: webserver + daemon pour le pipeline CIF Credit Intelligence
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DAGSTER_HOME=/opt/dagster/home \
+    MLFLOW_TRACKING_URI=http://mlflow:5000
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY pipelines ./pipelines
+
+RUN python -m pip install --upgrade pip && \
+    python -m pip install --no-cache-dir ".[dev]" dagster-webserver
+
+RUN mkdir -p ${DAGSTER_HOME}
+COPY infra/dagster/dagster.yaml ${DAGSTER_HOME}/dagster.yaml
+
+ENV PYTHONPATH=/app/src:/app
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')" || exit 1
+
+CMD ["dagster", "dev", "-f", "pipelines/definitions.py", "-h", "0.0.0.0", "-p", "3000"]

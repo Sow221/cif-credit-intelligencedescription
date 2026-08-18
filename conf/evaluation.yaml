@@ -1,0 +1,16 @@
+# Configuration de l'audit / évaluation (critères GO/NO-GO du protocole CIF)
+evaluation:
+  bootstrap_iterations: 1000
+  ci_percentile: 0.95
+  go_roc_auc: 0.65
+  nogo_roc_auc: 0.55
+  ece_threshold: 0.10
+  robustness_noise_levels:
+    - 0.0
+    - 0.05
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+  report_dir: data/artifacts/reports
