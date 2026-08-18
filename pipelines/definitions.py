@@ -22,15 +22,15 @@ import dagster as dg
 import mlflow
 import pandas as pd
 
-from cif_credit.config import load_config
-from cif_credit.data.synthetic import generate_datasets, save_datasets
-from cif_credit.evaluation.ablation import run_ablation
-from cif_credit.evaluation.bootstrap import bootstrap_metrics
-from cif_credit.evaluation.fairness import fairness_by_group
-from cif_credit.evaluation.robustness import robustness_curve
-from cif_credit.features.builder import build_features as build_features_df
-from cif_credit.models.train import feature_columns, train_and_log
-from cif_credit.utils.logging import get_logger
+from config import load_config
+from data.synthetic import generate_datasets, save_datasets
+from evaluation.ablation import run_ablation
+from evaluation.bootstrap import bootstrap_metrics
+from evaluation.fairness import fairness_by_group
+from evaluation.robustness import robustness_curve
+from features.builder import build_features as build_features_df
+from models.train import feature_columns, train_and_log
+from utils.logging import get_logger
 
 logger = get_logger(__name__)
 CONF = load_config()
@@ -89,7 +89,7 @@ def evaluate_model(context: dg.AssetExecutionContext) -> None:
         X, y, test_size=CONF.model.test_size, random_state=CONF.model.random_state, stratify=y
     )
 
-    from cif_credit.models.train import train_plain
+    from models.train import train_plain
 
     model, base_metrics = train_plain(df, CONF.model, CONF.features)
     probs = model.predict_proba(X_te)[:, 1]
@@ -106,9 +106,7 @@ def evaluate_model(context: dg.AssetExecutionContext) -> None:
 
     roc = float(base_metrics["roc_auc"])
     ece = float(base_metrics["ece"])
-    decision_gate = (
-        "GO" if (roc >= CONF.evaluation.go_roc_auc and ece <= CONF.evaluation.ece_threshold) else "NO-GO"
-    )
+    decision_gate = "GO" if (roc >= CONF.evaluation.go_roc_auc and ece <= CONF.evaluation.ece_threshold) else "NO-GO"
     final["decision_gate"] = decision_gate
 
     (report_dir / "evaluation_report.json").write_text(
@@ -123,7 +121,7 @@ def decide_batch(context: dg.AssetExecutionContext) -> None:
     out = Path("data/artifacts") / "decisions.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    from cif_credit.decision.engine import DecisionEngine, DecisionPolicy
+    from services.decision_engine import DecisionEngine, DecisionPolicy
 
     df = pd.read_parquet(Path(CONF.data.processed_dir) / CONF.features.output_file)
     _mlflow_env()

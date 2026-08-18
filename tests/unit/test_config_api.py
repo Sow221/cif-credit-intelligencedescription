@@ -1,14 +1,13 @@
 """Tests de la configuration et de l'API (sans déploiement MLflow)."""
 
-
 import pytest
 from fastapi.testclient import TestClient
 from xgboost import XGBClassifier
 
-from cif_credit.config import load_config
-from cif_credit.config.schema import FeatureConfig
-from cif_credit.models.train import feature_columns
-from cif_credit.serving.api import create_app
+from api.app import create_app
+from config import load_config
+from config.schema import FeatureConfig
+from models.train import feature_columns
 
 
 def test_load_config_defaults():

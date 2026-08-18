@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from cif_credit.config.schema import DataConfig
-from cif_credit.data.synthetic import generate_datasets
+from config.schema import DataConfig
+from data.synthetic import generate_datasets
 
 
 def test_generate_datasets_structure():

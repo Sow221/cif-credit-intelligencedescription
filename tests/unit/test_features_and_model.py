@@ -2,10 +2,10 @@
 
 import pandas as pd
 
-from cif_credit.config.schema import DataConfig, FeatureConfig, ModelConfig
-from cif_credit.data.synthetic import generate_datasets
-from cif_credit.features.builder import build_features
-from cif_credit.models.train import feature_columns, train_plain
+from config.schema import DataConfig, FeatureConfig, ModelConfig
+from data.synthetic import generate_datasets
+from features.builder import build_features
+from models.train import feature_columns, train_plain
 
 
 def _fixture() -> tuple[pd.DataFrame, FeatureConfig]:

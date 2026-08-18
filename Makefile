@@ -20,19 +20,19 @@ test:
 	pytest -q
 
 generate:
-	$(PY) -m cif_credit.cli.generate
+	$(PY) -m cli.generate
 
 train:
-	$(PY) -m cif_credit.cli.train
+	$(PY) -m cli.train
 
 evaluate:
-	$(PY) -m cif_credit.cli.evaluate
+	$(PY) -m cli.evaluate
 
 decision:
-	$(PY) -m cif_credit.cli.decision
+	$(PY) -m cli.decision
 
 api:
-	$(PY) -m uvicorn cif_credit.serving.api:create_app --factory --host 0.0.0.0 --port 8000
+	$(PY) -m uvicorn api.app:create_app --factory --host 0.0.0.0 --port 8000
 
 dagster:
 	dagster dev -f pipelines/definitions.py -h 0.0.0.0 -p 3000

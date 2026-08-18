@@ -8,38 +8,45 @@ d'expertise : reproductible, testée, instrumentée, déployable.
 > synthétique**, pas un benchmark CIF. Ce dépôt contient la version *engineering-grade* de ce
 > prototype, prête à accueillir les données réelles CIF via le protocole d'audit V1.1.
 
-## Architecture
+## Architecture (alignée sur le cahier du cabinet)
 
 ```
-src/cif_credit/
-├── config/        # Dataclasses + chargement Hydra
-├── data/          # Générateur synthétique, schémas, qualité (Great Expectations)
-├── features/      # Feature engineering versionné
-├── models/        # Entraînement XGBoost, registry MLflow
-├── evaluation/    # Métriques, calibration, bootstrap, robustesse, fairness
-├── decision/      # Decision engine (Model ≠ Policy ≠ Workflow ≠ Decision)
-├── monitoring/    # Dérive (Evidently), métriques Prometheus
-├── serving/       # API de scoring FastAPI
-└── utils/         # Logging structuré, observabilité (OpenTelemetry)
-pipelines/         # Définitions Dagster (assets, jobs, schedules, sensors)
-conf/              # Configuration Hydra versionnée
-infra/             # Docker Compose, Grafana, Prometheus, MLflow
-tests/             # Tests unitaires et d'intégration
-docs/              # ADR, model cards, runbooks
+src/
+├── api/                  # API FastAPI : app.py, routes.py, schemas.py, middleware.py
+├── config/               # settings.py (Pydantic) + schema (Hydra) + load
+├── data/                 # Générateur synthétique
+├── evaluation/           # Métriques, calibration, bootstrap, robustesse, fairness
+├── features/
+│   ├── definitions/      # UN fichier par feature + contrat (nom, version, bornes, owner, SLA)
+│   └── builder.py        # Calcul centralisé (aucune formule dupliquée)
+├── models/               # Entraînement XGBoost (train.py) + model_card.py
+├── monitoring/           # Drift (Evidently) : drift_report.py, metrics Prometheus
+├── services/             # decision_engine.py, confidence.py, predictor.py, audit_service.py
+├── cli/                  # Commandes cif-*
+└── utils/                # Logging structuré, reproductibilité
+migrations/               # Alembic (schema PostgreSQL versionné)
+terraform/                # Infrastructure as Code (Oracle Cloud)
+k8s/                      # Manifests Kubernetes (deployment, service, ingress, rollback)
+pipelines/                # Définitions Dagster (assets, jobs, schedules)
+infra/                    # Docker Compose, Grafana, Prometheus, MLflow
+tests/                    # Tests unitaires et d'intégration
+docs/                     # ADR, model cards, runbooks
 ```
 
 ## Stack
 
 | Couche | Outil |
 |---|---|
-| Langage | Python 3.11, package `src/` typé (mypy strict, ruff) |
-| Config | Hydra (framework de Meta) |
+| Langage | Python 3.11, packages typés (mypy strict, ruff) |
+| Config | Pydantic v2 (settings) + Hydra (YAML) |
 | Orchestration | Dagster (assets versionnés, lineage) |
 | Tracking & registry | MLflow (Postgres + MinIO) |
 | Qualité de données | Great Expectations + Pydantic v2 |
 | Monitoring | Evidently + Prometheus + Grafana + Alertmanager |
 | Serving | FastAPI, modèle servi depuis le registry |
+| BDD | PostgreSQL 16 + Alembic (audit trail) |
 | CI/CD | GitHub Actions (lint → mypy → tests → build → promote) |
+| Déploiement | K3s sur Oracle Cloud Free Tier + Terraform |
 
 ## Démarrage rapide
 
@@ -70,7 +77,7 @@ docker compose -f infra/docker-compose.yml up -d
 
 Ce dépôt implémente les exigences §M07 / §64 / §65 / §93 du cahier des charges CIF Digital Platform :
 séparation Model/Policy/Workflow, human-in-the-loop, gouvernance des modèles, split temporel,
-monitoring et rollback. Voir `docs/` pour le détail.
+monitoring et rollback. Voir `docs/` pour le détail et `traçabilité.md` du prototype.
 
 ## État
 

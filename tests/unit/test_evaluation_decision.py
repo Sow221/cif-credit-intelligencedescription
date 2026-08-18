@@ -2,13 +2,13 @@
 
 import numpy as np
 
-from cif_credit.decision.engine import Decision, DecisionEngine, DecisionPolicy
-from cif_credit.evaluation.bootstrap import bootstrap_metrics
-from cif_credit.evaluation.metrics import (
+from evaluation.bootstrap import bootstrap_metrics
+from evaluation.metrics import (
     calibration_metrics,
     classification_at_threshold,
     compute_all_metrics,
 )
+from services.decision_engine import Decision, DecisionEngine, DecisionPolicy
 
 
 def test_compute_all_metrics_ranges():
