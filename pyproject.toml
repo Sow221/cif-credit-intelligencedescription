@@ -18,6 +18,7 @@ dependencies = [
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
     "pyyaml>=6.0",
+    "click>=8.1",
     "mlflow>=2.11",
     "dagster>=1.7",
     "dagster-webserver>=1.7",
@@ -58,6 +59,7 @@ test = [
 cif-generate = "cli.generate:main"
 cif-train = "cli.train:main"
 cif-evaluate = "cli.evaluate:main"
+cif-register-model = "cli.register:main"
 cif-decision = "cli.decision:main"
 cif-api = "api.app:main"
 

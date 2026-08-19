@@ -1,0 +1,65 @@
+{
+  "name_version": "cif_credit_official:1.0.0",
+  "model_name": "cif_credit_official",
+  "version": "1.0.0",
+  "model_type": "classification_binaire",
+  "algorithm": "XGBClassifier + CalibratedClassifierCV(isotonic)",
+  "owner": "TELQAN / CIF Credit Intelligence",
+  "contact": "contact@cif-digital-platform.test",
+  "intended_use": "Scoring de crédit (estimation de la probabilité de défaut) des clients CIF/DigiCoop-WA+ ; décision finale sous revue humaine (human-in-the-loop) obligatoire.",
+  "target_population": "Détenteurs de produits CIF/DigiCoop-WA+ (pilot synthétique et réel).",
+  "decision_thresholds": {
+    "approve": 0.1,
+    "review": 0.25,
+    "hard_reject": 0.5
+  },
+  "training_metrics": {
+    "roc_auc": 0.83,
+    "pr_auc": 0.62,
+    "ece": 0.021,
+    "brier": 0.07
+  },
+  "training_date": "2026-08-19T13:38:14.291201+00:00",
+  "features": [
+    "age",
+    "gender_num",
+    "sector_num",
+    "location_num",
+    "monthly_income",
+    "income_volatility",
+    "current_savings",
+    "avg_savings_24m",
+    "savings_stability",
+    "savings_volatility",
+    "loan_to_savings_ratio",
+    "savings_trend",
+    "savings_min_24m",
+    "n_past_loans",
+    "repayment_regularity",
+    "max_dpd",
+    "payments_on_time_ratio",
+    "loan_history_quality",
+    "active_loans",
+    "seniority_months",
+    "current_loan_request",
+    "current_loan_duration",
+    "current_loan_purpose_num",
+    "income_to_request_ratio",
+    "debt_ratio"
+  ],
+  "calibration_method": "isotonic",
+  "monitoring_thresholds": {
+    "roc_auc_min": 0.65,
+    "ece_max": 0.1,
+    "psi_max": 0.25
+  },
+  "limitations": [
+    "Modèle entraîné sur données synthétiques pour le pilot.",
+    "Pas de décision contractuelle sans revue humaine (REVUE_HUMAINE).",
+    "À ré-entraîner sur les données réelles CIF (protocole shadow mode)."
+  ],
+  "fairness_notes": "Audit d'équité à reproduire sur données réelles (disparités par profil non fiabilisées sur données synthétiques).",
+  "data_sources": [
+    "Prototype synthétique TELQAN (audit phases A-F)"
+  ]
+}
