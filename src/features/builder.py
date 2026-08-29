@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 from config.schema import FeatureConfig
+from features.validate import LeakageError, assert_no_leakage, forbidden_features
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -78,7 +79,18 @@ def aggregate_savings(customers: pd.DataFrame, savings: pd.DataFrame) -> pd.Data
 def build_features(
     customers: pd.DataFrame, loans: pd.DataFrame, savings: pd.DataFrame, cfg: FeatureConfig
 ) -> pd.DataFrame:
-    """Construit le jeu de features final (25 colonnes + target)."""
+    """Construit le jeu de features final (25 colonnes + target).
+
+    La garde anti-leakage est appliquée : toute variable de fuite
+    (``p_default_true``…) présente en entrée provoque une erreur bloquante
+    (exigence protocole CIF) — jamais un entraînement sur donnée contaminée.
+    """
+    hits = forbidden_features(customers)
+    if hits:
+        raise LeakageError(
+            f"Variables de fuite détectées en entrée (customers) : {hits}. Supprimez-les avant tout entraînement."
+        )
+
     df = customers.copy()
     df = encode_categorical(df)
 
@@ -139,7 +151,7 @@ def build_features(
         n_rows=len(df),
         target=cfg.target,
     )
-    return df[required].copy()
+    return assert_no_leakage(df[required].copy(), feature_columns=feature_cols, allow_target=True)
 
 
 def save_features(df: pd.DataFrame, cfg: FeatureConfig, processed_dir: str) -> str:

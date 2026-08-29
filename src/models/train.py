@@ -12,13 +12,11 @@ import numpy as np
 import pandas as pd
 from mlflow.models import infer_signature
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 
 from config.schema import FeatureConfig, ModelConfig
 from evaluation.metrics import compute_all_metrics
 from utils.logging import get_logger
-from utils.seed import seed_everything
 
 logger = get_logger(__name__)
 
@@ -43,17 +41,39 @@ def feature_columns(cfg: FeatureConfig) -> list[str]:
     return cols
 
 
+def temporal_split(
+    df: pd.DataFrame,
+    cfg: ModelConfig,
+    target: str,
+    *,
+    order_col: str = "customer_id",
+    split_date: float = 0.8,
+) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
+    """Split TEMPOREL (protocole CIF) : l'ordre des lignes est l'ordre du temps.
+
+    Remplace le split aléatoire (interdit par la discipline CIF). NB : le jeu
+    synthétique ne porte pas de vraie date ; le proxy temporel est l'ordre des
+    ``customer_id`` (les premiers contrats sont les plus anciens). À substituer
+    par une vraie colonne ``application_date`` sur les données CIF réelles.
+    """
+    cols = feature_columns(FeatureConfig())
+    df = df.sort_values(order_col).reset_index(drop=True)
+    cutoff = int(len(df) * split_date)
+    train_df = df.iloc[:cutoff].copy()
+    val_df = df.iloc[cutoff:].copy()
+
+    X_tr = train_df[cols].astype(float)
+    X_te = val_df[cols].astype(float)
+    y_tr = train_df[target].astype(int).to_numpy()
+    y_te = val_df[target].astype(int).to_numpy()
+    return X_tr, X_te, y_tr, y_te
+
+
 def train_split(
     df: pd.DataFrame, cfg: ModelConfig, target: str
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
-    """Split train/test stratifié et reproductible (split aléatoire pour le prototype synthétique ;
-    le protocole CIF impose un split *temporel* sur données réelles)."""
-    seed_everything(cfg.random_state)
-    cols = feature_columns(FeatureConfig())
-    X = df[cols].astype(float)
-    y = df[target].astype(int).to_numpy()
-    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=cfg.test_size, random_state=cfg.random_state, stratify=y)
-    return X_tr, X_te, y_tr, y_te
+    """Split train/test TEMPOREL reproductible (protocole CIF, jamais aléatoire)."""
+    return temporal_split(df, cfg, target)
 
 
 def make_model(cfg: ModelConfig, scale_pos_weight: float = 1.0) -> Any:
@@ -89,11 +109,7 @@ def train_and_log(
 ) -> TrainingResult:
     """Entraîne, évalue et journalise dans MLflow (métriques + signature + artifacts)."""
     cols = feature_columns(feature_cfg)
-    X = df[cols].astype(float)
-    y = df[feature_cfg.target].astype(int).to_numpy()
-    X_tr, X_te, y_tr, y_te = train_test_split(
-        X, y, test_size=model_cfg.test_size, random_state=model_cfg.random_state, stratify=y
-    )
+    X_tr, X_te, y_tr, y_te = temporal_split(df, model_cfg, feature_cfg.target)
 
     pos_weight = float((y_tr == 0).sum() / max((y_tr == 1).sum(), 1))
     model = make_model(model_cfg, scale_pos_weight=pos_weight)
@@ -139,12 +155,7 @@ def train_plain(
     df: pd.DataFrame, model_cfg: ModelConfig, feature_cfg: FeatureConfig
 ) -> tuple[XGBClassifier, dict[str, float]]:
     """Entraîne sans MLflow (pour tests unitaires et ablation study)."""
-    cols = feature_columns(feature_cfg)
-    X = df[cols].astype(float)
-    y = df[feature_cfg.target].astype(int).to_numpy()
-    X_tr, X_te, y_tr, y_te = train_test_split(
-        X, y, test_size=model_cfg.test_size, random_state=model_cfg.random_state, stratify=y
-    )
+    X_tr, X_te, y_tr, y_te = temporal_split(df, model_cfg, feature_cfg.target)
     pos_weight = float((y_tr == 0).sum() / max((y_tr == 1).sum(), 1))
     model = make_model(model_cfg, scale_pos_weight=pos_weight)
     if model_cfg.calibration.enabled:

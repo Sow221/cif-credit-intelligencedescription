@@ -76,13 +76,33 @@ docker compose -f infra/docker-compose.yml up -d
 ## Conformité cahier des charges CIF
 
 Ce dépôt implémente les exigences §M07 / §64 / §65 / §93 du cahier des charges CIF Digital Platform :
-séparation Model/Policy/Workflow, human-in-the-loop, gouvernance des modèles, split temporel,
-monitoring et rollback. Voir `docs/` pour le détail et `traçabilité.md` du prototype.
+séparation Model/Policy/Workflow, human-in-the-loop, gouvernance des modèles, monitoring et rollback.
+Voir `docs/` pour le détail et `traçabilité.md` du prototype.
+
+### Validation méthodologique (fusion avec le dépôt `cifci`)
+
+Les garanties de validité du protocole CIF sont **implémentées dans le code**, pas seulement
+documentées :
+
+- **Split temporel** (`src/models/train.py` → `temporal_split`) : l'entraînement n'utilise **jamais**
+  de split aléatoire. La coupure suit l'ordre temporel (proxy `customer_id` sur le jeu synthétique,
+  à substituer par une vraie colonne `application_date` sur les données réelles). Verrouillé par
+  `tests/unit/test_temporal_split.py`.
+- **Garde anti-leakage** (`src/features/validate.py` + `src/features/builder.py`) : toute variable de
+  fuite (ex : `p_default_true`) provoque une **erreur bloquante** au feature engineering et une
+  **réponse 422** à l'API. Le générateur (`src/data/synthetic.py`) **ne diffuse plus** `p_default_true`
+  dans la table clients (purge à la source). Verrouillé par `tests/unit/test_leakage.py` et
+  `tests/integration/test_api.py`.
+- **Hyperparamètres du modèle alignés sur l'officiel calibré** : `max_depth=4`, `learning_rate=0.03`,
+  `n_estimators=300`.
 
 ## État
 
 Phase 1 — Infrastructure (ce dépôt). Phase 2 — Reproduction du prototype synthétique.
 Phase 3 — Protocole données réelles CIF (shadow mode).
+
+**Rigueur exécutée** : 71 tests verts (52 unitaires + 16 intégration + 3 temporel), ruff et
+`mypy --strict` sans erreur.
 
 ## Avancement selon le plan du cabinet (retour.txt)
 

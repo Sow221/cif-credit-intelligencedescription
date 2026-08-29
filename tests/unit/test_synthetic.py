@@ -1,7 +1,5 @@
 """Tests du générateur de données synthétiques."""
 
-import numpy as np
-
 from config.schema import DataConfig
 from data.synthetic import generate_datasets
 
@@ -12,8 +10,9 @@ def test_generate_datasets_structure():
 
     assert len(ds.customers) == 500
     assert set(ds.customers["is_default"]).issubset({0, 1})
-    assert "p_default_true" in ds.customers.columns
-    assert ds.customers["p_default_true"].between(0.0, 1.0).all()
+    # Garde anti-leakage à la source : la probabilité de fuite n'est JAMAIS émise
+    # dans la table clients (elle servirait de variable de fuite à l'entraînement).
+    assert "p_default_true" not in ds.customers.columns
 
     assert len(ds.loans) > 0
     assert set(ds.loans.columns) >= {
@@ -47,10 +46,14 @@ def test_reproducibility():
     assert a.savings.equals(b.savings)
 
 
-def test_p_default_matches_is_default_distribution():
+def test_p_default_never_leaks_into_customers():
+    """Le générateur ne doit exposer aucune variable de fuite dans la table clients.
+
+    Autrefois `p_default_true` (probabilité de défaut exacte) était émis dans la
+    table clients : c'est une variable de fuite catégorique — elle encode la cible
+    par construction. Purge à la source (voir src/data/synthetic.py).
+    """
     cfg = DataConfig(n_customers=1000, seed=1)
     ds = generate_datasets(cfg)
-    mean_p = float(ds.customers["p_default_true"].mean())
-    rate = float(ds.customers["is_default"].mean())
-    assert abs(mean_p - rate) < 0.05
-    assert np.corrcoef(ds.customers["p_default_true"], ds.customers["is_default"])[0, 1] > 0.5
+    lowered = {str(c).lower() for c in ds.customers.columns}
+    assert all(not any(t in c for t in ("p_default", "probability_default", "true_default")) for c in lowered)

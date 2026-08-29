@@ -17,6 +17,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from api.middleware import RateLimiter
 from api.schemas import HealthResponse, ScoreRequest, ScoreResponse, TokenRequest, TokenResponse
 from api.security import check_credentials, create_access_token, verify_token
+from features.validate import FORBIDDEN_SUBSTRINGS
 from monitoring.metrics import record_score
 from services.audit_service import AuditEvent, AuditService
 from services.predictor import Predictor
@@ -115,6 +116,15 @@ async def _score_handlers(payload: ScoreRequest, request: Request, client: str) 
 
     start = time.perf_counter()
     provided = set(payload.features)
+
+    # Garde anti-leakage : rejette formellement toute feature de fuite (422).
+    forbidden_hits = [f for f in provided if any(tok in f.lower() for tok in FORBIDDEN_SUBSTRINGS)]
+    if forbidden_hits:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Features interdites (leakage potentiel) : {sorted(forbidden_hits)}",
+        )
+
     missing = set(container.cols) - provided
     if missing:
         raise HTTPException(status_code=422, detail=f"Features manquantes : {sorted(missing)}")

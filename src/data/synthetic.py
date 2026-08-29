@@ -42,7 +42,6 @@ CUSTOMER_COLUMNS = [
     "current_loan_duration",
     "current_loan_purpose",
     "loan_to_savings_ratio",
-    "p_default_true",
     "is_default",
 ]
 
@@ -174,7 +173,6 @@ def generate_customers(cfg: DataConfig, latent: np.ndarray, b0: float, scale: fl
             "current_loan_duration": current_loan_duration,
             "current_loan_purpose": current_loan_purpose,
             "loan_to_savings_ratio": loan_to_savings_ratio.round(4),
-            "p_default_true": p_default.round(6),
             "is_default": is_default,
         }
     )

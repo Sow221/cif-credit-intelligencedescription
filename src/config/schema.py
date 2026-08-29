@@ -82,11 +82,12 @@ class ModelConfig:
     test_size: float = 0.2
     random_state: int = 42
     n_trials: int = 30
-    # Hyperparamètres XGBoost
+    # Hyperparamètres XGBoost — alignés sur le modèle officiel calibré (dépôt de
+    # référence `cifci`) : profondeur 4, lr 0.03, 300 arbres (pas le défaut).
     xgboost: dict[str, float | int | str] = field(
         default_factory=lambda: {
-            "max_depth": 6,
-            "learning_rate": 0.1,
+            "max_depth": 4,
+            "learning_rate": 0.03,
             "n_estimators": 300,
             "subsample": 0.9,
             "colsample_bytree": 0.8,

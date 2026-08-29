@@ -120,3 +120,13 @@ def test_check_credentials_uses_env(monkeypatch):
     monkeypatch.setenv("CIF_API_CLIENT_SECRET", "secret-1")
     assert check_credentials("agent-1", "secret-1")
     assert not check_credentials("agent-1", "wrong")
+
+
+def test_predict_rejects_forbidden_feature():
+    """Garde anti-leakage : une feature de fuite (p_default_true) → 422."""
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
+    payload = _payload()
+    payload["features"]["p_default_true"] = 0.5
+    with TestClient(app) as client:
+        resp = client.post("/v1/predict", json=payload)
+        assert resp.status_code == 422
