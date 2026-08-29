@@ -1,5 +1,6 @@
-# Ingress HTTPS — Nginx Ingress Controller, TLS via certificat d'origine Cloudflare
-# (architecture cible : Clients → Cloudflare CDN/WAF → Ingress Nginx → Service cif-api)
+# Ingress HTTPS (OPTIONNEL) — necessite nginx-ingress + cert-manager + un
+# ClusterIssuer "cloudflare-origin". Non installe par defaut sur K3s.
+# Exposition simple sans composant supplementaire : voir service.yaml (NodePort 30080).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

@@ -47,12 +47,42 @@ automatiquement le port `7860`. URL publique obtenue après le build du Space.
 
 ## 5. Kubernetes (Oracle Cloud Free Tier)
 
+Le cluster tire l'image GHCR (voir §3 : rendre le package **public**).
+
+**Option A — provisionner l'infra via Terraform** (crée une VM A1 + K3s) :
+
 ```bash
-cd terraform && terraform init && terraform apply   # VM A1 + K3s
-scp -i key.pem k8s/*.yaml ubuntu@<ip>:/tmp/
-kubectl apply -f k8s/secret.yaml           # renseigner client_id/secret
-kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml -f k8s/ingress.yaml
+cd terraform && terraform init && terraform apply \
+  -var="tenancy_ocid=ocid1.tenancy.." \
+  -var="user_ocid=ocid1.user.." \
+  -var="compartment_ocid=ocid1.compartment.." \
+  -var="fingerprint=xx:xx" \
+  -var="private_key_path=~/.oci/key.pem" \
+  -var="ssh_public_key=ssh-rsa AAAA..."
+# cloud-init installe K3s, cree le namespace + le secret JWT, et applique
+# deployment.yaml + service.yaml (NodePort 30080).
 ```
+
+**Option B — cluster deja existant** :
+
+```bash
+kubectl apply -f k8s/namespace.yaml -f k8s/secret.yaml \
+  -f k8s/deployment.yaml -f k8s/service.yaml
+# rotation du secret JWT en prod :
+kubectl -n cif create secret generic cif-api-secret \
+  --from-literal=jwt=$(openssl rand -hex 32) --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Vérification et URL de demo :
+
+```bash
+kubectl -n cif get pods
+# Service NodePort 30080 -> http://<ip-publique-du-node>:30080/v1/health
+```
+
+> `ingress.yaml` est **optionnel** : il nécessite nginx-ingress + cert-manager +
+> un ClusterIssuer `cloudflare-origin`. Sans ces composants, exposez via le
+> NodePort (ou `kubectl port-forward svc/cif-api 8000:80 -n cif`).
 
 ## Sécurité
 

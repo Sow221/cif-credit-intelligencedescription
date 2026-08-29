@@ -1,5 +1,6 @@
 # Déploiement API de scoring — cluster K3s (Oracle Cloud Free Tier)
-# 2 réplicas, probes /v1/health, secrets via k8s (aucun secret en dur), image canary par tag.
+# 2 réplicas, probes /v1/health, secret JWT via k8s, image GHCR (modèle cuit
+# dans /app/model, aucun accès MLflow requis au runtime).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,7 +22,6 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
-        rollouts.argoproj.io/revision: "{{ REVISION }}"
     spec:
       securityContext:
         runAsNonRoot: true
@@ -29,23 +29,18 @@ spec:
         fsGroup: 999
       containers:
         - name: api
-          image: ghcr.io/sow221/cif-credit-intelligence/api:{{ IMAGE_TAG }}
+          image: ghcr.io/sow221/cif-credit-intelligence/api:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           env:
-            - name: MLFLOW_TRACKING_URI
-              value: http://mlflow:5000
-            - name: CIF_DATABASE__URL
-              valueFrom:
-                secretKeyRef:
-                  name: cif-db-secret
-                  key: url
-            - name: CIF_JWT_SECRET
+            - name: CIF_JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: cif-api-secret
                   key: jwt
+            - name: CIF_MODEL_URI
+              value: /app/model
           resources:
             requests:
               cpu: 250m

@@ -104,6 +104,11 @@ resource "oci_core_security_list" "cif_sl" {
     source   = "0.0.0.0/0"
     tcp_options { min = 8000; max = 8000 }
   }
+  ingress_security_rules {
+    protocol = "6"
+    source   = "0.0.0.0/0"
+    tcp_options { min = 30080; max = 30080 }
+  }
   egress_security_rules {
     protocol = "all"
     destination = "0.0.0.0/0"
@@ -136,7 +141,12 @@ resource "oci_core_instance" "cif_k3s" {
           permissions: '0755'
           content: |
             #!/bin/bash
+            set -e
             curl -sfL https://get.k3s.io | sh -
+            sleep 20
+            kubectl create namespace cif --dry-run=client -o yaml | kubectl apply -f -
+            kubectl -n cif create secret generic cif-api-secret \
+              --from-literal=jwt=$(openssl rand -hex 32) --dry-run=client -o yaml | kubectl apply -f -
             kubectl apply -f https://raw.githubusercontent.com/${var.repo}/${var.branch}/k8s/deployment.yaml
             kubectl apply -f https://raw.githubusercontent.com/${var.repo}/${var.branch}/k8s/service.yaml
       runcmd:
