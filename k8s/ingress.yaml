@@ -1,0 +1,29 @@
+# Ingress HTTPS — Nginx Ingress Controller, TLS via certificat d'origine Cloudflare
+# (architecture cible : Clients → Cloudflare CDN/WAF → Ingress Nginx → Service cif-api)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cif-api
+  namespace: cif
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    cert-manager.io/cluster-issuer: "cloudflare-origin"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - cif-api.example.com
+      secretName: cif-api-tls
+  rules:
+    - host: cif-api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cif-api
+                port:
+                  number: 80

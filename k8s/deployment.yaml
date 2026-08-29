@@ -1,0 +1,70 @@
+# Déploiement API de scoring — cluster K3s (Oracle Cloud Free Tier)
+# 2 réplicas, probes /v1/health, secrets via k8s (aucun secret en dur), image canary par tag.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cif-api
+  namespace: cif
+  labels:
+    app: cif-api
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cif-api
+  template:
+    metadata:
+      labels:
+        app: cif-api
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        rollouts.argoproj.io/revision: "{{ REVISION }}"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+        - name: api
+          image: ghcr.io/sow221/cif-credit-intelligence/api:{{ IMAGE_TAG }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: http://mlflow:5000
+            - name: CIF_DATABASE__URL
+              valueFrom:
+                secretKeyRef:
+                  name: cif-db-secret
+                  key: url
+            - name: CIF_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cif-api-secret
+                  key: jwt
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+      terminationGracePeriodSeconds: 30

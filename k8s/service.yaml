@@ -1,0 +1,18 @@
+# Service interne ClusterIP — accessible uniquement dans le cluster (n'expose rien publiquement)
+apiVersion: v1
+kind: Service
+metadata:
+  name: cif-api
+  namespace: cif
+  labels:
+    app: cif-api
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: cif-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
