@@ -1,0 +1,13 @@
+flavors:
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.8.0
+    skops_trusted_types: null
+mlflow_version: 3.15.1
+model_id: null
+model_size_bytes: 358
+model_uuid: 07fa6038083849ea926126f24c52441c
+prompts: null
+utc_time_created: '2026-08-29 23:17:46.913469'

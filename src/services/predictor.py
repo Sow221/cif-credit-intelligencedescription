@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pandas as pd
 
+from config.schema import FeatureConfig
 from services.audit_service import AuditService
 from services.confidence import prediction_confidence
 from services.decision_engine import DecisionEngine
@@ -93,7 +94,11 @@ class Predictor:
             raise RuntimeError("Predictor requiert un modèle chargé (engine.model).")
 
         rid = request_id or str(uuid4())
-        feat_df = pd.DataFrame([features]).astype(float)
+        # XGBoost exige que les colonnes soient dans l'ordre d'entrainement ;
+        # on re-ordonne explicitement (independant de l'ordre du client) pour
+        # eviter un mismatch de feature_names (500 sinon).
+        cols = [c for fam in FeatureConfig().families.values() for c in fam]
+        feat_df = pd.DataFrame([features]).astype(float)[cols]
         probability = float(self.engine.model.predict_proba(feat_df)[0, 1])
         confidence = prediction_confidence(probability, self.thresholds)
         outcome = self.engine.decide(
