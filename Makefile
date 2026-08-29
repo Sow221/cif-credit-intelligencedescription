@@ -1,57 +1,33 @@
-# Makefile — commandes opérationnelles du projet CIF Credit Intelligence
-.PHONY: install lint typecheck test generate train evaluate decision api stack up down clean pre-commit
+# CIF Credit Intelligence — deploiement production (Oracle Cloud Free Tier)
+#
+# Architecture cible (IaC + GitOps-like) :
+#   GitHub Actions  --build/push-->  GHCR (image api:latest, modele cuit)
+#   Terraform       --provisionne--> VM A1 + K3s (Oracle Always-Free)
+#   K3s             --execute-->     deployment cif-api (2 replicas, NodePort 30080)
+#
+# Usage (une seule commande) :
+#   make deploy \
+#     TF_VAR_tenancy_ocid=ocid1.tenancy.. \
+#     TF_VAR_user_ocid=ocid1.user.. \
+#     TF_VAR_compartment_ocid=ocid1.compartment.. \
+#     TF_VAR_fingerprint=xx:xx \
+#     TF_VAR_private_key_path=~/.oci/key.pem \
+#     TF_VAR_ssh_public_key="ssh-rsa AAAA..." \
+#     SSH_KEY=~/.ssh/id_ed25519
+#
+# Prerequis : terraform, kubectl, scp, curl, openssl installes.
+# GHCR : rendre le package `api` public (GitHub -> Packages -> api -> public).
 
-VENV := .venv
-PY := $(VENV)/Scripts/python.exe
+.PHONY: init deploy verify clean
 
-install:
-	python -m venv $(VENV)
-	$(PY) -m pip install -U pip
-	$(PY) -m pip install -e ".[dev]"
+init:
+	cd terraform && terraform init -input=false
 
-lint:
-	ruff check .
-	ruff format --check .
+deploy: init
+	./scripts/deploy.sh
 
-typecheck:
-	mypy src
-
-test:
-	pytest -q
-
-generate:
-	$(PY) -m cli.generate
-
-train:
-	$(PY) -m cli.train
-
-evaluate:
-	$(PY) -m cli.evaluate
-
-decision:
-	$(PY) -m cli.decision
-
-api:
-	$(PY) -m uvicorn api.app:create_app --factory --host 0.0.0.0 --port 8000
-
-dagster:
-	dagster dev -f pipelines/definitions.py -h 0.0.0.0 -p 3000
-
-pre-commit:
-	pre-commit install
-	pre-commit run --all-files
-
-db-migrate:
-	$(PY) -m alembic -c alembic.ini upgrade head
-
-db-migrate-sql:
-	$(PY) -m alembic -c alembic.ini upgrade head --sql
-
-stack:
-	docker compose -f infra/docker-compose.yml up -d --build
-
-down:
-	docker compose -f infra/docker-compose.yml down
+verify:
+	KUBECONFIG=/tmp/cif-k3s.yaml kubectl -n cif get pods,svc
 
 clean:
-	rm -rf $(VENV) .pytest_cache .mypy_cache .ruff_cache mlruns mlruns.db data/raw data/processed data/artifacts
+	cd terraform && terraform destroy -auto-approve
