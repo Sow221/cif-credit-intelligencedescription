@@ -208,7 +208,7 @@ def generate_loans(cfg: DataConfig, customers: pd.DataFrame, latent: np.ndarray)
             max_dpd = int(np.clip(rng.gamma(1.8, 6.0) * (0.3 + 2.0 * badness), 0, 90))
             n_payments_scheduled = duration
             payments_on_time = int(max(0, int(n_payments_scheduled * (repayment_regularity + rng.normal(0, 0.08)))))
-            loan_status = "defaulted" if (is_def == 1 and rng.random() < 0.85) else "closed"
+            loan_status = "default" if (is_def == 1 and rng.random() < 0.85) else "repaid"
             rows.append(
                 {
                     "customer_id": customer_id,

@@ -25,41 +25,44 @@ class FeatureConfig:
 
     target: str = "is_default"
     output_file: str = "features_prepared.parquet"
-    # Feature families (utilisées par l'ablation study) — 25 features au total
+    # Les 25 features du MODÈLE OFFICIEL calibré (source de vérité unique, cf.
+    # `cifci`/MODEL_OFFICIAL_CALIBRATED). Organisées en 4 familles pour
+    # l'ablation study. Ne pas dériver : c'est la liste exacte qui reproduit
+    # le ROC-AUC documenté du modèle officiel.
     families: dict[str, list[str]] = field(
         default_factory=lambda: {
             "profile_income": [
                 "age",
-                "gender_num",
-                "sector_num",
-                "location_num",
+                "seniority_months",
                 "monthly_income",
-                "income_volatility",
+                "current_loan_request",
+                "current_loan_duration",
             ],
             "savings": [
                 "current_savings",
                 "avg_savings_24m",
-                "savings_stability",
+                "savings_std_24m",
                 "savings_volatility",
+                "savings_stability",
                 "loan_to_savings_ratio",
-                "savings_trend",
-                "savings_min_24m",
+                "savings_to_income_ratio",
             ],
             "history": [
                 "n_past_loans",
-                "repayment_regularity",
-                "max_dpd",
-                "payments_on_time_ratio",
-                "loan_history_quality",
-                "active_loans",
+                "n_loans",
+                "avg_loan_amount",
+                "total_loan_amount",
+                "avg_repayment_regularity",
+                "min_repayment_regularity",
+                "max_historical_dpd",
+                "mean_historical_dpd",
+                "n_defaults",
+                "historical_default_rate",
+                "overall_payment_regularity",
             ],
             "context": [
-                "seniority_months",
-                "current_loan_request",
-                "current_loan_duration",
-                "current_loan_purpose_num",
-                "income_to_request_ratio",
-                "debt_ratio",
+                "loan_to_income_ratio",
+                "seniority_years",
             ],
         }
     )

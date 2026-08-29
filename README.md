@@ -93,6 +93,9 @@ documentées :
   **réponse 422** à l'API. Le générateur (`src/data/synthetic.py`) **ne diffuse plus** `p_default_true`
   dans la table clients (purge à la source). Verrouillé par `tests/unit/test_leakage.py` et
   `tests/integration/test_api.py`.
+- **Feature-set = modèle officiel calibré** (`src/features/builder.py`) : les 25 features du `cifci`
+  (profil/revenu, agrégation des prêts, ratios dérivés) sont reconstruites comme source de vérité
+  unique, avec contrats (`src/features/definitions/`) et tests.
 - **Hyperparamètres du modèle alignés sur l'officiel calibré** : `max_depth=4`, `learning_rate=0.03`,
   `n_estimators=300`.
 
@@ -101,8 +104,7 @@ documentées :
 Phase 1 — Infrastructure (ce dépôt). Phase 2 — Reproduction du prototype synthétique.
 Phase 3 — Protocole données réelles CIF (shadow mode).
 
-**Rigueur exécutée** : 71 tests verts (52 unitaires + 16 intégration + 3 temporel), ruff et
-`mypy --strict` sans erreur.
+**Rigueur exécutée** : 72 tests verts, ruff et `mypy --strict` sans erreur.
 
 ## Avancement selon le plan du cabinet (retour.txt)
 

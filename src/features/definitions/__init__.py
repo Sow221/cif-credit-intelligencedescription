@@ -1,69 +1,70 @@
 """Registre des contrats de features (exigence cabinet : un fichier par feature).
 
-Ce module agrège les 25 contrats et expose ``validate_feature_contracts`` qui garantit la
-cohérence entre les contrats, la configuration (``FeatureConfig.families``) et la source de
-vérité des colonnes du modèle — toute feature sans contrat ou tout
-contrat orphelin est signalé.
+Ce module agrège les 25 contrats — les features du MODÈLE OFFICIEL calibré — et
+expose ``validate_feature_contracts`` qui garantit la cohérence entre les
+contrats, la configuration (``FeatureConfig.families``) et la source de vérité
+des colonnes du modèle — toute feature sans contrat ou tout contrat orphelin
+est signalé.
 """
 
 from __future__ import annotations
 
 from config.schema import FeatureConfig
 from features.definitions import (
-    active_loans,
     age,
+    avg_loan_amount,
+    avg_repayment_regularity,
     avg_savings_24m,
     current_loan_duration,
-    current_loan_purpose_num,
     current_loan_request,
     current_savings,
-    debt_ratio,
-    gender_num,
-    income_to_request_ratio,
-    income_volatility,
-    loan_history_quality,
+    historical_default_rate,
+    loan_to_income_ratio,
     loan_to_savings_ratio,
-    location_num,
-    max_dpd,
+    max_historical_dpd,
+    mean_historical_dpd,
+    min_repayment_regularity,
     monthly_income,
+    n_defaults,
+    n_loans,
     n_past_loans,
-    payments_on_time_ratio,
-    repayment_regularity,
-    savings_min_24m,
+    overall_payment_regularity,
     savings_stability,
-    savings_trend,
+    savings_std_24m,
+    savings_to_income_ratio,
     savings_volatility,
-    sector_num,
     seniority_months,
+    seniority_years,
+    total_loan_amount,
 )
 from features.definitions.contract import FeatureContract
 
 _CONTRACT_MODULES = [
     age,
-    active_loans,
-    avg_savings_24m,
-    current_loan_duration,
-    current_loan_purpose_num,
-    current_loan_request,
-    current_savings,
-    debt_ratio,
-    gender_num,
-    income_to_request_ratio,
-    income_volatility,
-    loan_history_quality,
-    loan_to_savings_ratio,
-    location_num,
-    max_dpd,
-    monthly_income,
-    n_past_loans,
-    payments_on_time_ratio,
-    repayment_regularity,
-    savings_min_24m,
-    savings_stability,
-    savings_trend,
-    savings_volatility,
-    sector_num,
     seniority_months,
+    monthly_income,
+    current_loan_request,
+    current_loan_duration,
+    current_savings,
+    avg_savings_24m,
+    savings_std_24m,
+    savings_volatility,
+    savings_stability,
+    loan_to_savings_ratio,
+    savings_to_income_ratio,
+    n_past_loans,
+    n_loans,
+    avg_loan_amount,
+    total_loan_amount,
+    avg_repayment_regularity,
+    min_repayment_regularity,
+    max_historical_dpd,
+    mean_historical_dpd,
+    n_defaults,
+    historical_default_rate,
+    overall_payment_regularity,
+    loan_to_income_ratio,
+    seniority_years,
 ]
 
 CONTRACTS: dict[str, FeatureContract] = {module.CONTRACT.name: module.CONTRACT for module in _CONTRACT_MODULES}

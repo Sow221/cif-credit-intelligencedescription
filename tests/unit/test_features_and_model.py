@@ -29,9 +29,10 @@ def test_thin_file_imputation():
     features, _ = _fixture()
     thin = features[features["n_past_loans"] == 0]
     if len(thin) > 0:
-        # Les thin-file ont un historique rempli par défaut
-        assert (thin["repayment_regularity"] == 0.5).all()
-        assert (thin["max_dpd"] == 0).all()
+        # Les thin-file ont les agrégats de prêt remplis à neutre (0)
+        assert (thin["n_loans"] == 0).all()
+        assert (thin["max_historical_dpd"] == 0).all()
+        assert (thin["avg_repayment_regularity"] == 0).all()
 
 
 def test_train_plain_runs():

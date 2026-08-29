@@ -65,13 +65,14 @@ def test_validate_bounds():
     "name,lo,hi",
     [
         ("age", 18.0, 75.0),
-        ("gender_num", 0.0, 1.0),
         ("monthly_income", 20_000.0, 2_000_000.0),
         ("n_past_loans", 0.0, 8.0),
-        ("max_dpd", 0.0, 90.0),
-        ("repayment_regularity", 0.0, 1.0),
-        ("loan_history_quality", 0.0, 1.0),
         ("seniority_months", 0.0, 240.0),
+        ("savings_volatility", 0.0, 1.0),
+        ("savings_stability", 0.0, 1.0),
+        ("avg_repayment_regularity", 0.0, 1.0),
+        ("historical_default_rate", 0.0, 1.0),
+        ("loan_to_savings_ratio", 0.0, 200.0),
     ],
 )
 def test_feature_bounds_respected_on_generated_data(name, lo, hi):

@@ -1,16 +1,24 @@
-"""Feature engineering versionné — 25 features organisées en 4 familles.
+"""Feature engineering versionné — 25 features du MODÈLE OFFICIEL.
 
-Familles (alignées avec l'ablation study du journal de bord) :
+Reconstruit le pipeline qui transforme les tables brutes ``customers`` +
+``loans`` en la matrice des 25 features utilisées par le modèle officiel
+calibré (``MODEL_OFFICIAL_CALIBRATED``). C'est LA source de vérité : cette
+liste reproduit le ROC-AUC documenté (phase synthétique ≈ 0.83 / pipeline
+reproduit ≈ 0.87). Elle est alignée sur le dépôt de référence `cifci`.
+
+Familles (utilisées par l'ablation study) :
 - profile_income : profil socio-démographique et revenu
-- savings        : comportement d'épargne (signal dominant)
-- history        : historique de remboursement
-- context        : contexte de la demande courante
+- savings        : comportement d'épargne (profil)
+- history        : historique de remboursement (agrégation des prêts)
+- context        : contexte de la demande / ratios économiques
 
-Toutes les features sont calculées à partir d'informations **disponibles avant la décision**
-(principe anti-leakage du protocole CIF : aucune variable post-décision).
+Garde anti-leakage : aucune variable de fuite (``p_default_true``…) ne peut
+entrer — erreur bloquante si c'est le cas (``features.validate``).
 """
 
 from __future__ import annotations
+
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -21,137 +29,114 @@ from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-SECTOR_MAP = {"agriculture": 0, "commerce": 1, "services": 2, "elevage": 3}
-LOCATION_MAP = {"urbain": 0, "periurbain": 1, "rural": 2}
-PURPOSE_MAP = {"agricole": 0, "commercial": 1, "equipement": 2, "consommation": 3}
+# Colonnes de la table customers reprises telles quelles (id + cible gérés à part).
+_CUSTOMER_FEATURE_COLS = [
+    "age",
+    "seniority_months",
+    "monthly_income",
+    "current_savings",
+    "avg_savings_24m",
+    "savings_std_24m",
+    "savings_volatility",
+    "savings_stability",
+    "n_past_loans",
+    "current_loan_request",
+    "current_loan_duration",
+    "loan_to_savings_ratio",
+]
 
 
-def encode_categorical(df: pd.DataFrame) -> pd.DataFrame:
-    """Encode les variables catégorielles en codes numériques stables (pas de one-hot pour limiter la dim.)."""
-    out = df.copy()
-    out["gender_num"] = (out["gender"] == "F").astype(int)
-    out["sector_num"] = out["sector"].map(SECTOR_MAP).fillna(-1).astype(int)
-    out["location_num"] = out["location"].map(LOCATION_MAP).fillna(-1).astype(int)
-    out["current_loan_purpose_num"] = out["current_loan_purpose"].map(PURPOSE_MAP).fillna(-1).astype(int)
-    return out
-
-
-def aggregate_loans(customers: pd.DataFrame, loans: pd.DataFrame) -> pd.DataFrame:
-    """Agrège l'historique de prêts par client (features HISTORY).
-
-    Le comptage est nommé ``n_past_loans_history`` pour éviter toute collision
-    avec la colonne ``n_past_loans`` de la table customers.
-    """
+def aggregate_loans(loans: pd.DataFrame) -> pd.DataFrame:
+    """Agrège l'historique de prêts par client en features numériques (HISTORY)."""
+    loans = loans.copy()
     agg = (
         loans.groupby("customer_id")
         .agg(
-            n_past_loans_history=("loan_id", "count"),
-            repayment_regularity=("repayment_regularity", "mean"),
-            max_dpd=("max_dpd", "max"),
-            payments_on_time_ratio=("payments_on_time", "mean"),
-            n_payments_total=("n_payments", "sum"),
-            active_loans=("loan_status", lambda s: int((s == "open").sum())),
+            n_loans=("loan_amount", "size"),
+            avg_loan_amount=("loan_amount", "mean"),
+            total_loan_amount=("loan_amount", "sum"),
+            avg_repayment_regularity=("repayment_regularity", "mean"),
+            min_repayment_regularity=("repayment_regularity", "min"),
+            max_historical_dpd=("max_dpd", "max"),
+            mean_historical_dpd=("max_dpd", "mean"),
+            n_defaults=("loan_status", lambda s: int((s == "default").sum())),
         )
         .reset_index()
     )
-    # qualité globale de l'historique (0..1)
-    agg["loan_history_quality"] = np.clip(
-        agg["repayment_regularity"] * (1.0 - agg["max_dpd"] / 90.0) * (agg["payments_on_time_ratio"].clip(0, 1)),
-        0.0,
-        1.0,
-    )
-    return agg
-
-
-def aggregate_savings(customers: pd.DataFrame, savings: pd.DataFrame) -> pd.DataFrame:
-    """Agrège les séries temporelles d'épargne (features SAVINGS dérivées)."""
-    agg = (
-        savings.groupby("customer_id")
-        .agg(
-            savings_trend_raw=("savings_balance", lambda s: np.polyfit(np.arange(len(s)), s.values, 1)[0]),
-            savings_min_24m=("savings_balance", "min"),
-        )
-        .reset_index()
-    )
+    agg["historical_default_rate"] = agg["n_defaults"] / np.maximum(agg["n_loans"], 1)
     return agg
 
 
 def build_features(
-    customers: pd.DataFrame, loans: pd.DataFrame, savings: pd.DataFrame, cfg: FeatureConfig
+    customers: pd.DataFrame,
+    loans: pd.DataFrame,
+    savings: pd.DataFrame | None = None,
+    cfg: FeatureConfig | None = None,
+    *,
+    drop_forbidden: bool = False,
 ) -> pd.DataFrame:
-    """Construit le jeu de features final (25 colonnes + target).
+    """Construit la matrice des 25 features officielles (+ ``customer_id`` + cible).
 
-    La garde anti-leakage est appliquée : toute variable de fuite
-    (``p_default_true``…) présente en entrée provoque une erreur bloquante
-    (exigence protocole CIF) — jamais un entraînement sur donnée contaminée.
+    Args:
+        customers: table clients (avec ``customer_id``, ``is_default``).
+        loans: historique de prêts à agréger par client.
+        savings: ignoré — les 25 features officielles ne dépendent que de
+            customers + loans. Conservé pour compatibilité d'appel.
+        cfg: configuration des features (familles / cible).
+        drop_forbidden: si True, supprime en avertissant toute variable de fuite
+            présente en entrée ; sinon (défaut), lève ``LeakageError`` — garde
+            déterministe, aucune fuite ne survit.
+
+    Returns:
+        DataFrame des 25 features officielles + ``customer_id`` + ``is_default``.
     """
+    cfg = cfg or FeatureConfig()
+    feature_columns = [col for family in cfg.families.values() for col in family]
+    target = cfg.target
+
     hits = forbidden_features(customers)
     if hits:
-        raise LeakageError(
-            f"Variables de fuite détectées en entrée (customers) : {hits}. Supprimez-les avant tout entraînement."
-        )
+        if drop_forbidden:
+            warnings.warn(
+                f"Variables de fuite détectées et supprimées : {hits}.",
+                stacklevel=2,
+            )
+            customers = customers.drop(columns=[c for c in hits if c in customers])
+        else:
+            raise LeakageError(
+                f"Variables de fuite détectées en entrée (customers) : {hits}. Supprimez-les avant tout entraînement."
+            )
 
-    df = customers.copy()
-    df = encode_categorical(df)
+    loan_agg = aggregate_loans(loans)
+    df = customers.merge(loan_agg, on="customer_id", how="left")
 
-    loan_agg = aggregate_loans(customers, loans)
-    savings_agg = aggregate_savings(customers, savings)
-    df = df.merge(loan_agg, on="customer_id", how="left")
-    df = df.merge(savings_agg, on="customer_id", how="left")
+    # Remplit les clients sans historique (thin-file) par des neutres.
+    for col in [
+        "n_loans",
+        "avg_loan_amount",
+        "total_loan_amount",
+        "avg_repayment_regularity",
+        "min_repayment_regularity",
+        "max_historical_dpd",
+        "mean_historical_dpd",
+        "n_defaults",
+        "historical_default_rate",
+    ]:
+        if col in df.columns:
+            df[col] = df[col].fillna(0)
 
-    # Combler les clients sans historique (thin-file) ; le comptage issu de l'historique
-    # réel des prêts prime sur la déclaration de la table customers.
-    df["n_past_loans"] = df["n_past_loans_history"].fillna(df["n_past_loans"]).fillna(0).astype(int)
-    df = df.drop(columns=["n_past_loans_history"])
-    df["repayment_regularity"] = df["repayment_regularity"].fillna(0.5)
-    df["max_dpd"] = df["max_dpd"].fillna(0).astype(int)
-    df["payments_on_time_ratio"] = df["payments_on_time_ratio"].fillna(0.5)
-    df["loan_history_quality"] = df["loan_history_quality"].fillna(0.0)
-    df["active_loans"] = df["active_loans"].fillna(0).astype(int)
+    # Features dérivées (ratios et conversions d'unités).
+    df["loan_to_income_ratio"] = df["current_loan_request"] / df["monthly_income"].replace(0, np.nan)
+    df["savings_to_income_ratio"] = df["current_savings"] / df["monthly_income"].replace(0, np.nan)
+    df["seniority_years"] = df["seniority_months"] / 12.0
+    df["overall_payment_regularity"] = df["avg_repayment_regularity"]
 
-    # Features dérivées supplémentaires
-    df["savings_trend"] = df["savings_trend_raw"].fillna(0.0)
-    df["savings_min_24m"] = df["savings_min_24m"].fillna(0.0)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        df["income_to_request_ratio"] = np.where(
-            df["current_loan_request"] > 0,
-            df["monthly_income"] / df["current_loan_request"],
-            0.0,
-        )
-        df["debt_ratio"] = np.where(
-            df["monthly_income"] > 0,
-            df["current_loan_request"] / np.maximum(df["monthly_income"] * 12.0, 1.0),
-            0.0,
-        )
-    df["income_to_request_ratio"] = df["income_to_request_ratio"].replace([np.inf, -np.inf], 0.0).clip(0, 10)
-    df["debt_ratio"] = df["debt_ratio"].replace([np.inf, -np.inf], 0.0).clip(0, 20)
+    out_cols = ["customer_id", *feature_columns]
+    if target in df.columns:
+        out_cols.append(target)
+    result = df[out_cols].copy()
 
-    df = df.drop(columns=["savings_trend_raw"], errors="ignore")
-
-    # Sélection finale (ordre stable et reproductible)
-    feature_cols: list[str] = []
-    for family in cfg.families.values():
-        for col in family:
-            if col not in feature_cols:
-                feature_cols.append(col)
-    required = [*feature_cols, cfg.target]
-
-    # Le customer_id est conservé pour le traçage individuel des décisions (audit §M08),
-    # mais ne fait PAS partie des features du modèle.
-    if "customer_id" in df.columns and "customer_id" not in required:
-        required = ["customer_id", *required]
-
-    missing = [c for c in required if c not in df.columns]
-    if missing:
-        raise ValueError(f"Colonnes manquantes après feature engineering : {missing}")
-
-    logger.info(
-        "features.build.done",
-        n_features=len(feature_cols),
-        n_rows=len(df),
-        target=cfg.target,
-    )
-    return assert_no_leakage(df[required].copy(), feature_columns=feature_cols, allow_target=True)
+    return assert_no_leakage(result, feature_columns=feature_columns, allow_target=True)
 
 
 def save_features(df: pd.DataFrame, cfg: FeatureConfig, processed_dir: str) -> str:
