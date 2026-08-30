@@ -42,3 +42,13 @@ Thumbs.db
 # Local infra volumes
 infra/volumes/
 grafana-data/
+
+# Runtime logs / local state
+*.log
+!docs/LINKEDIN_POST.md
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log

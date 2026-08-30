@@ -4,6 +4,18 @@ from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram
 
+# Métriques HTTP (qualité de service) — standard Prometheus
+REQUEST_COUNT = Counter(
+    "cif_http_requests_total",
+    "Nombre de requêtes HTTP traitées",
+    ["method", "endpoint", "status"],
+)
+REQUEST_LATENCY = Histogram(
+    "cif_http_request_duration_seconds",
+    "Latence des requêtes HTTP",
+    ["endpoint"],
+)
+
 # Compteur de requêtes de scoring par décision
 SCORE_REQUESTS = Counter(
     "cif_score_requests_total",
@@ -42,3 +54,9 @@ def record_score(model_version: str, probability: float, duration_seconds: float
     SCORE_REQUESTS.labels(model_version=model_version).inc()
     SCORE_PROBABILITY.observe(probability)
     SCORE_DURATION.observe(duration_seconds)
+
+
+def record_request(method: str, endpoint: str, status: int, duration_seconds: float) -> None:
+    """Enregistre une requête HTTP dans les métriques Prometheus."""
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=str(status)).inc()
+    REQUEST_LATENCY.labels(endpoint=endpoint).observe(duration_seconds)

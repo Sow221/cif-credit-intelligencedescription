@@ -143,6 +143,10 @@ async def _score_handlers(payload: ScoreRequest, request: Request, client: str) 
         actor=client,
     )
 
+    monitor = getattr(request.app.state, "drift_monitor", None)
+    if monitor is not None:
+        monitor.observe(feat)
+
     duration = time.perf_counter() - start
     record_score(
         model_version=request.app.state.model_version,

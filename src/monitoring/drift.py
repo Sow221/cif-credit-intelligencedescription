@@ -66,8 +66,8 @@ def compute_data_drift_report(
     raw = report.as_dict()
     try:
         drift_payload = raw["metrics"][0]["result"]
-        summary["n_features"] = len(drift_payload.get("drift_by_columns", {}))
-        n_drift = int(sum(1 for v in drift_payload.get("drift_by_columns", {}).values() if v.get("drift_detected")))
+        summary["n_features"] = int(drift_payload.get("number_of_columns", 0))
+        n_drift = int(drift_payload.get("number_of_drifted_columns", 0))
         summary["n_features_in_drift"] = n_drift
         summary["drift_ratio"] = round(n_drift / max(summary["n_features"], 1), 4)
         summary["dataset_drift"] = bool(drift_payload.get("dataset_drift"))
@@ -85,3 +85,23 @@ def check_drift_alert(summary: dict[str, Any], threshold: float = 0.2) -> bool:
     """True si le taux de drift dépasse le seuil d'alerte."""
     ratio = summary.get("drift_ratio", 0.0)
     return bool(ratio is not None and float(ratio) >= threshold)
+
+
+def compute_drift_ratio(reference: pd.DataFrame, current: pd.DataFrame) -> float:
+    """Calcule uniquement le taux de features en drift (DataDriftPreset), sans écriture de fichier.
+
+    Utilisé par le monitoring temps réel pour alimenter la jauge Prometheus ``cif_drift_ratio``.
+    """
+    from evidently.metric_preset import DataDriftPreset
+    from evidently.report import Report
+
+    report = Report(metrics=[DataDriftPreset()])
+    report.run(reference_data=reference.copy(), current_data=current.copy())
+    raw = report.as_dict()
+    try:
+        payload = raw["metrics"][0]["result"]
+        n = int(payload.get("number_of_columns", 0))
+        n_drift = int(payload.get("number_of_drifted_columns", 0))
+        return round(n_drift / max(n, 1), 4)
+    except (KeyError, TypeError):
+        return 0.0

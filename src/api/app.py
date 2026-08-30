@@ -8,6 +8,7 @@ suivre le pattern d'injection de dépendances explicite.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from collections.abc import AsyncIterator
@@ -17,11 +18,12 @@ from typing import Any
 import mlflow
 from fastapi import FastAPI
 
-from api.middleware import RateLimiter, RequestIDMiddleware
+from api.middleware import MetricsMiddleware, RateLimiter, RequestIDMiddleware
 from api.routes import router_plain, router_v1
 from config.schema import FeatureConfig
 from config.settings import get_settings
 from models.train import feature_columns
+from monitoring.drift_monitor import DRIFT_COMPUTE_INTERVAL_SECONDS, DriftMonitor, load_reference
 from services.audit_service import AuditService
 from services.decision_engine import DecisionEngine, DecisionPolicy
 from services.predictor import Predictor
@@ -38,6 +40,16 @@ class ModelContainer:
     def __init__(self, model: Any | None = None, cols: list[str] | None = None) -> None:
         self.model = model
         self.cols = cols or feature_columns(FeatureConfig())
+
+
+async def _drift_loop(monitor: DriftMonitor) -> None:
+    """Boucle d'arrière-plan : recalcule le drift périodiquement."""
+    while True:
+        await asyncio.sleep(DRIFT_COMPUTE_INTERVAL_SECONDS)
+        try:
+            monitor.compute()
+        except Exception:  # pragma: no cover
+            logger.exception("monitoring.drift.loop.error")
 
 
 def create_app(
@@ -88,7 +100,25 @@ def create_app(
             model_version=uri,
             audit=audit_service,
         )
-        yield
+
+        # Monitoring de drift temps réel (Evidently) — désactivé proprement si la
+        # baseline ne peut être construite (ex : dépendance manquante).
+        cols = feature_columns(FeatureConfig())
+        try:
+            reference = load_reference(cols)
+            app.state.drift_monitor = DriftMonitor(reference, cols)
+        except Exception as exc:  # pragma: no cover
+            logger.warning("monitoring.drift.disabled", error=str(exc))
+            app.state.drift_monitor = None
+        drift_task = None
+        if app.state.drift_monitor is not None:
+            drift_task = asyncio.create_task(_drift_loop(app.state.drift_monitor))
+
+        try:
+            yield
+        finally:
+            if drift_task is not None:
+                drift_task.cancel()
 
     app = FastAPI(
         title="CIF Credit Intelligence API",
@@ -107,6 +137,7 @@ def create_app(
     app.state.start_time = _START_TIME
     app.state.model_version = uri
 
+    app.add_middleware(MetricsMiddleware)
     app.add_middleware(RequestIDMiddleware)
     app.include_router(router_v1)
     app.include_router(router_plain)

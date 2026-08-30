@@ -3,6 +3,7 @@ import os
 os.environ.setdefault("MODEL_URI", "/app/model")
 
 import uvicorn
+
 from api.app import create_app
 
 app = create_app()

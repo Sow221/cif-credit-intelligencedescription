@@ -17,6 +17,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from monitoring.metrics import record_request
+
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     """Attribue et propage un identifiant de requête unique."""
@@ -29,6 +31,17 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         finally:
             structlog.contextvars.unbind_contextvars("request_id")
         response.headers["X-Request-ID"] = request_id
+        return response
+
+
+class MetricsMiddleware(BaseHTTPMiddleware):
+    """Instrumente chaque requête HTTP dans Prometheus (compteur + latence)."""
+
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration = time.perf_counter() - start
+        record_request(request.method, request.url.path, response.status_code, duration)
         return response
 
 
