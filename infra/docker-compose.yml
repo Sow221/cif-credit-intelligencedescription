@@ -43,6 +43,20 @@ services:
       retries: 5
     networks: [cif]
 
+  # Job unique : MinIO démarre sans buckets — sans ça, MLflow échoue au premier
+  # upload d'artefact avec NoSuchBucket (confirmé en pratique en CI).
+  createbuckets:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-mlflow} ${MINIO_ROOT_PASSWORD:-mlflowminio} &&
+      mc mb --ignore-existing local/mlflow-artifacts
+      "
+    networks: [cif]
+
   mlflow:
     build:
       context: ..
@@ -59,6 +73,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
       minio:
         condition: service_healthy
     healthcheck:
