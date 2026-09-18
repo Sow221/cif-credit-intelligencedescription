@@ -6,7 +6,11 @@ name: cif-credit-intelligence
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # Miroir Google (mirror.gcr.io) plutôt que docker.io direct : les runners CI
+    # partagent des IP fréquemment throttlées par la limite de débit anonyme de
+    # Docker Hub (confirmé en pratique : "pull access denied" en CI, image publique
+    # pourtant valide). Aucune authentification requise, zéro nouveau secret.
+    image: mirror.gcr.io/library/postgres:16-alpine
     environment:
       POSTGRES_USER: ${PG_USER:-mlflow}
       POSTGRES_PASSWORD: ${PG_PASSWORD:-mlflow}
@@ -21,7 +25,7 @@ services:
     networks: [cif]
 
   minio:
-    image: minio/minio:latest
+    image: mirror.gcr.io/minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-mlflow}
@@ -95,7 +99,7 @@ services:
     networks: [cif]
 
   prometheus:
-    image: prom/prometheus:v2.53.0
+    image: mirror.gcr.io/prom/prometheus:v2.53.0
     ports:
       - "9090:9090"
     volumes:
@@ -110,7 +114,7 @@ services:
     networks: [cif]
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: mirror.gcr.io/prom/alertmanager:v0.27.0
     ports:
       - "9093:9093"
     volumes:
@@ -119,7 +123,7 @@ services:
     networks: [cif]
 
   grafana:
-    image: grafana/grafana:11.1.0
+    image: mirror.gcr.io/grafana/grafana:11.1.0
     ports:
       - "3001:3000"
     environment:

@@ -82,7 +82,15 @@ jobs:
 
       - name: Démarrer le socle (Postgres, MinIO, MLflow)
         working-directory: infra
-        run: docker compose up -d --build postgres minio mlflow
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            docker compose up -d --build postgres minio mlflow && exit 0
+            echo "Tentative $attempt échouée (pull registre potentiellement transitoire), nouvel essai dans 15s..." >&2
+            docker compose down -v || true
+            sleep 15
+          done
+          exit 1
 
       - name: Attendre MLflow
         run: |
@@ -100,7 +108,14 @@ jobs:
 
       - name: Démarrer le reste de la stack (API, Dagster, Prometheus, Grafana)
         working-directory: infra
-        run: docker compose up -d --build
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            docker compose up -d --build && exit 0
+            echo "Tentative $attempt échouée, nouvel essai dans 15s..." >&2
+            sleep 15
+          done
+          exit 1
 
       - name: Attendre les services applicatifs
         run: |
