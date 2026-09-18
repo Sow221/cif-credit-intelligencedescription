@@ -8,9 +8,12 @@ RUN python -m pip install --no-cache-dir "mlflow>=2.11" "psycopg2-binary" "boto3
 
 EXPOSE 5000
 
-CMD ["mlflow", "server", \
-     "--host", "0.0.0.0", \
-     "--port", "5000", \
-     "--backend-store-uri", "$BACKEND_STORE_URI", \
-     "--default-artifact-root", "$ARTIFACT_ROOT", \
-     "--serve-artifacts"]
+# Forme shell (pas JSON-exec) : requise pour que $BACKEND_STORE_URI / $ARTIFACT_ROOT
+# soient réellement substitués par les variables d'environnement du conteneur — la
+# forme exec ne passe par aucun shell et ne les interpole jamais.
+CMD mlflow server \
+    --host 0.0.0.0 \
+    --port 5000 \
+    --backend-store-uri "$BACKEND_STORE_URI" \
+    --default-artifact-root "$ARTIFACT_ROOT" \
+    --serve-artifacts
