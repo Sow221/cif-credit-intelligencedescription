@@ -60,6 +60,7 @@ cif-generate = "cli.generate:main"
 cif-train = "cli.train:main"
 cif-evaluate = "cli.evaluate:main"
 cif-register-model = "cli.register:main"
+cif-export-model = "cli.export_model:main"
 cif-decision = "cli.decision:main"
 cif-api = "api.app:main"
 
