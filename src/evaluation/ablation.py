@@ -32,14 +32,24 @@ def run_ablation(
     families = feature_cfg.families
 
     target = feature_cfg.target
-    y = df[target].astype(int).to_numpy()
+    ordered = df.sort_values("customer_id").reset_index(drop=True)
+    cutoff = int(len(ordered) * 0.8)
+    train_df, val_df = ordered.iloc[:cutoff], ordered.iloc[cutoff:]
+    y_tr = train_df[target].astype(int).to_numpy()
+    y_te = val_df[target].astype(int).to_numpy()
 
     def _eval(cols: list[str]) -> float:
-        X = df[cols].astype(float)
+        # Holdout TEMPOREL (jamais d'évaluation en interne — un modèle évalué sur ses
+        # propres données d'entraînement surestime systématiquement sa performance).
+        X_tr = train_df[cols].astype(float)
+        X_te = val_df[cols].astype(float)
         model = make_model(model_cfg)
-        model.fit(X, y, eval_set=[(X, y)], verbose=False)
-        probs = model.predict_proba(X)[:, 1]
-        return float(roc_auc_score(y, probs))
+        if model_cfg.calibration.enabled:
+            model.fit(X_tr, y_tr)
+        else:
+            model.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], verbose=False)
+        probs = model.predict_proba(X_te)[:, 1]
+        return float(roc_auc_score(y_te, probs))
 
     profile = families["profile_income"]
     savings = profile + families["savings"]

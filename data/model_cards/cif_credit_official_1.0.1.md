@@ -1,10 +1,5 @@
-> ⚠️ **DÉPRÉCIÉE — conservée comme trace historique.** Ces métriques ont été mesurées avec
-> une fuite de données non détectée (`historical_default_rate` dérivée de la cible via
-> `loan_status`, corrélation ≈0.94). Corrigé dans `cif_credit_official:1.0.1`, seule version
-> à utiliser. Voir `data/model_cards/cif_credit_official_1.0.1.md`.
-
 # Model Card — cif_credit_official
-**Version** : 1.0.0 | **Type** : classification_binaire | **Algorithme** : XGBClassifier + CalibratedClassifierCV(isotonic)
+**Version** : 1.0.1 | **Type** : classification_binaire | **Algorithme** : XGBClassifier + CalibratedClassifierCV(isotonic)
 **Responsable** : TELQAN / CIF Credit Intelligence (contact@cif-digital-platform.test)
 
 ## Usage prévu
@@ -16,10 +11,13 @@ Détenteurs de produits CIF/DigiCoop-WA+ (pilot synthétique et réel).
 ## Métriques d'entraînement
 | Métrique | Valeur |
 |---|---|
-| brier | 0.0700 |
-| ece | 0.0210 |
-| pr_auc | 0.6200 |
-| roc_auc | 0.8300 |
+| brier | 0.0534 |
+| calibration_intercept | -0.0411 |
+| calibration_slope | 1.0235 |
+| ece | 0.0138 |
+| log_loss | 0.1782 |
+| pr_auc | 0.7134 |
+| roc_auc | 0.9404 |
 
 ## Seuils de décision (Policy)
 | Seuil | Valeur |
@@ -39,6 +37,7 @@ Détenteurs de produits CIF/DigiCoop-WA+ (pilot synthétique et réel).
 - Modèle entraîné sur données synthétiques pour le pilot.
 - Pas de décision contractuelle sans revue humaine (REVUE_HUMAINE).
 - À ré-entraîner sur les données réelles CIF (protocole shadow mode).
+- Le générateur synthétique dérive toutes les features d'un facteur latent unique : le ROC-AUC observé (≈0.94) surestime structurellement la séparabilité attendue sur données réelles, multi-causales et non stationnaires. À réévaluer sur données CIF réelles.
 
 ## Considérations d'équité
 Audit d'équité à reproduire sur données réelles (disparités par profil non fiabilisées sur données synthétiques).
@@ -46,4 +45,4 @@ Audit d'équité à reproduire sur données réelles (disparités par profil non
 ## Sources de données
 - Prototype synthétique TELQAN (audit phases A-F)
 
-*Générée le 2026-08-19T13:38:14.291201+00:00.*
+*Générée le 2026-09-18T19:25:36.126391+00:00.*

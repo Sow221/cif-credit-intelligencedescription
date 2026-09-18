@@ -192,7 +192,6 @@ def generate_loans(cfg: DataConfig, customers: pd.DataFrame, latent: np.ndarray)
     loan_counter = 0
     for idx, customer_id in enumerate(customers["customer_id"].values):
         quality = latent[idx]
-        is_def = int(customers.loc[customers["customer_id"] == customer_id, "is_default"].iloc[0])
         income = float(customers.loc[customers["customer_id"] == customer_id, "monthly_income"].iloc[0])
         k = int(n_loans_per_customer[idx])
         for _ in range(k):
@@ -208,7 +207,11 @@ def generate_loans(cfg: DataConfig, customers: pd.DataFrame, latent: np.ndarray)
             max_dpd = int(np.clip(rng.gamma(1.8, 6.0) * (0.3 + 2.0 * badness), 0, 90))
             n_payments_scheduled = duration
             payments_on_time = int(max(0, int(n_payments_scheduled * (repayment_regularity + rng.normal(0, 0.08)))))
-            loan_status = "default" if (is_def == 1 and rng.random() < 0.85) else "repaid"
+            # Le statut du prêt est dérivé du comportement RÉALISÉ de CE prêt (retard
+            # maximal constaté) — jamais de la cible `is_default` du client. Seuil calibré
+            # empiriquement pour un taux de défaut au niveau prêt de l'ordre de 8 %, cohérent
+            # avec le taux de défaut client (~12 %). Anti-leakage : voir tests/unit/test_leakage.py.
+            loan_status = "default" if max_dpd >= 70 else "repaid"
             rows.append(
                 {
                     "customer_id": customer_id,

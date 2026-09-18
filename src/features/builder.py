@@ -24,7 +24,12 @@ import numpy as np
 import pandas as pd
 
 from config.schema import FeatureConfig
-from features.validate import LeakageError, assert_no_leakage, forbidden_features
+from features.validate import (
+    LeakageError,
+    assert_no_correlation_leakage,
+    assert_no_leakage,
+    forbidden_features,
+)
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -136,7 +141,10 @@ def build_features(
         out_cols.append(target)
     result = df[out_cols].copy()
 
-    return assert_no_leakage(result, feature_columns=feature_columns, allow_target=True)
+    result = assert_no_leakage(result, feature_columns=feature_columns, allow_target=True)
+    if target in result.columns:
+        result = assert_no_correlation_leakage(result, feature_columns=feature_columns, target=target)
+    return result
 
 
 def save_features(df: pd.DataFrame, cfg: FeatureConfig, processed_dir: str) -> str:

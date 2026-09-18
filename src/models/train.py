@@ -46,6 +46,7 @@ def temporal_split(
     cfg: ModelConfig,
     target: str,
     *,
+    feature_cfg: FeatureConfig | None = None,
     order_col: str = "customer_id",
     split_date: float = 0.8,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
@@ -55,8 +56,12 @@ def temporal_split(
     synthétique ne porte pas de vraie date ; le proxy temporel est l'ordre des
     ``customer_id`` (les premiers contrats sont les plus anciens). À substituer
     par une vraie colonne ``application_date`` sur les données CIF réelles.
+
+    ``feature_cfg`` détermine la liste de colonnes utilisée ; par défaut la config
+    officielle (25 features). La passer explicitement permet à l'ablation study de
+    splitter sur un sous-ensemble de familles sans dupliquer cette logique.
     """
-    cols = feature_columns(FeatureConfig())
+    cols = feature_columns(feature_cfg or FeatureConfig())
     df = df.sort_values(order_col).reset_index(drop=True)
     cutoff = int(len(df) * split_date)
     train_df = df.iloc[:cutoff].copy()
@@ -109,7 +114,7 @@ def train_and_log(
 ) -> TrainingResult:
     """Entraîne, évalue et journalise dans MLflow (métriques + signature + artifacts)."""
     cols = feature_columns(feature_cfg)
-    X_tr, X_te, y_tr, y_te = temporal_split(df, model_cfg, feature_cfg.target)
+    X_tr, X_te, y_tr, y_te = temporal_split(df, model_cfg, feature_cfg.target, feature_cfg=feature_cfg)
 
     pos_weight = float((y_tr == 0).sum() / max((y_tr == 1).sum(), 1))
     model = make_model(model_cfg, scale_pos_weight=pos_weight)
@@ -155,7 +160,7 @@ def train_plain(
     df: pd.DataFrame, model_cfg: ModelConfig, feature_cfg: FeatureConfig
 ) -> tuple[XGBClassifier, dict[str, float]]:
     """Entraîne sans MLflow (pour tests unitaires et ablation study)."""
-    X_tr, X_te, y_tr, y_te = temporal_split(df, model_cfg, feature_cfg.target)
+    X_tr, X_te, y_tr, y_te = temporal_split(df, model_cfg, feature_cfg.target, feature_cfg=feature_cfg)
     pos_weight = float((y_tr == 0).sum() / max((y_tr == 1).sum(), 1))
     model = make_model(model_cfg, scale_pos_weight=pos_weight)
     if model_cfg.calibration.enabled:

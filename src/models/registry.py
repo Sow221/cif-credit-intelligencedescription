@@ -137,6 +137,9 @@ def register_from_joblib(
             "Modèle entraîné sur données synthétiques pour le pilot.",
             "Pas de décision contractuelle sans revue humaine (REVUE_HUMAINE).",
             "À ré-entraîner sur les données réelles CIF (protocole shadow mode).",
+            "Le générateur synthétique dérive toutes les features d'un facteur latent unique : "
+            "le ROC-AUC observé (≈0.94) surestime structurellement la séparabilité attendue sur "
+            "données réelles, multi-causales et non stationnaires. À réévaluer sur données CIF réelles.",
         ],
         fairness_notes=(
             "Audit d'équité à reproduire sur données réelles (disparités par profil non fiabilisées "

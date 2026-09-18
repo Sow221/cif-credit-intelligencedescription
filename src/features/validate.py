@@ -80,6 +80,37 @@ def assert_no_leakage(
     return df
 
 
+CORRELATION_LEAKAGE_THRESHOLD = 0.75
+
+
+def assert_no_correlation_leakage(
+    df: pd.DataFrame,
+    *,
+    feature_columns: list[str],
+    target: str,
+    threshold: float = CORRELATION_LEAKAGE_THRESHOLD,
+) -> pd.DataFrame:
+    """Détecte la fuite STRUCTURELLE : une feature quasi-parfaitement corrélée à la cible.
+
+    Complète ``assert_no_leakage`` (qui ne bloque que des noms de colonnes littéraux) :
+    une variable peut encoder la cible sans jamais s'appeler ``p_default`` — c'est le cas
+    d'agrégats construits, en amont, à partir d'un champ lui-même dérivé de la cible.
+    Toute corrélation (Pearson, valeur absolue) au-delà de ``threshold`` est bloquante.
+    """
+    present = [c for c in feature_columns if c in df.columns]
+    if not present or target not in df.columns:
+        return df
+    corr = df[present].astype(float).corrwith(df[target].astype(float))
+    offenders = corr[corr.abs() > threshold]
+    if not offenders.empty:
+        detail = ", ".join(f"{name}={value:.3f}" for name, value in offenders.items())
+        raise LeakageError(
+            f"Fuite structurelle détectée : corrélation(s) avec la cible au-delà de "
+            f"{threshold} : {detail}. Une feature ne doit jamais quasi-encoder la cible."
+        )
+    return df
+
+
 def load_and_validate(
     path: str,
     *,
