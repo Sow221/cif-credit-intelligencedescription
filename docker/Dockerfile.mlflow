@@ -18,10 +18,16 @@ EXPOSE 5000
 # --artifacts-destination indique au SERVEUR seul où se trouve le stockage réel. Sans
 # ça, mlflow.sklearn.log_model() tente un accès S3 direct depuis le client et échoue
 # (NoCredentialsError) dès qu'il n'a pas les credentials MinIO dans son environnement.
+# --allowed-hosts : MLflow 3.x rejette par défaut (403, protection anti DNS-rebinding)
+# tout Host header hors "localhost"/IP privées — le nom de service Docker "mlflow" (tel
+# que résolu par MLFLOW_TRACKING_URI=http://mlflow:5000 côté API/Dagster/CI) n'est ni
+# l'un ni l'autre et se faisait bloquer. Réseau interne isolé (voir en-tête du compose) :
+# élargir aux clients internes est sans risque, pas une exposition publique.
 CMD mlflow server \
     --host 0.0.0.0 \
     --port 5000 \
     --backend-store-uri "$BACKEND_STORE_URI" \
     --default-artifact-root mlflow-artifacts:/ \
     --artifacts-destination "$ARTIFACT_ROOT" \
-    --serve-artifacts
+    --serve-artifacts \
+    --allowed-hosts "mlflow,localhost"
