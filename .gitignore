@@ -26,6 +26,7 @@ data/artifacts/*
 !data/processed/.gitkeep
 !data/artifacts/.gitkeep
 mlruns/
+mlruns.db
 mlartifacts/
 dagster_home/
 

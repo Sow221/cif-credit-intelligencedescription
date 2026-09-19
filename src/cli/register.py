@@ -56,23 +56,21 @@ def main(version: str, artifact: str | None, metrics_json: str | None, stage: st
         raise click.ClickException(f"Version {DEFAULT_MODEL_NAME}:{version} déjà enregistrée dans MLflow.")
 
     features = feature_columns(cfg.features)
-    metrics: dict[str, float] = {"roc_auc": 0.83, "ece": 0.02}
     if metrics_json:
         import json
 
         metrics = {k: float(v) for k, v in json.loads(metrics_json).items()}
     else:
-        try:
-            df = _load_synthetic_features(cfg)
-            from sklearn.model_selection import train_test_split
+        # Split TEMPOREL obligatoire (protocole CIF) — jamais de split aléatoire, y
+        # compris pour la métrique de registration. Aucune valeur par défaut fabriquée :
+        # si les métriques ne peuvent pas être calculées, l'enregistrement échoue explicitement
+        # plutôt que de publier un chiffre inventé dans le model card.
+        from models.train import temporal_split
 
-            X = df[features].astype(float)
-            y = df[cfg.features.target].astype(int).to_numpy()
-            _, X_te, _, y_te = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-            model = joblib.load(str(joblib_path))
-            metrics["roc_auc"] = float(roc_auc_score(y_te, model.predict_proba(X_te)[:, 1]))
-        except Exception:  # pragma: no cover - données synthétiques indisponibles
-            logger.warning("monitoring.metrics_fallback", reason="données synthétiques absentes")
+        df = _load_synthetic_features(cfg)
+        _, X_te, _, y_te = temporal_split(df, cfg.model, cfg.features.target, feature_cfg=cfg.features)
+        model = joblib.load(str(joblib_path))
+        metrics = {"roc_auc": float(roc_auc_score(y_te, model.predict_proba(X_te)[:, 1]))}
 
     decision_thresholds = {
         "approve": float(cfg.decision.approve_threshold),

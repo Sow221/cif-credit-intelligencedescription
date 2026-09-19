@@ -4,9 +4,12 @@ Plateforme de **scoring de crédit** pour l'écosystème CIF / DigiCoop-WA+ — 
 infrastructure d'intelligence financière (TELQAN Credit), selon les standards d'un cabinet
 d'expertise : reproductible, testée, instrumentée, déployable.
 
-> Le ROC-AUC de 0.83 du prototype synthétique est un **résultat expérimental sur environnement
-> synthétique**, pas un benchmark CIF. Ce dépôt contient la version *engineering-grade* de ce
-> prototype, prête à accueillir les données réelles CIF via le protocole d'audit V1.1.
+> Le ROC-AUC de 0.94 (`cif_credit_official:1.0.1`, voir `data/model_cards/`) du prototype
+> synthétique est un **résultat expérimental sur environnement synthétique**, pas un benchmark
+> CIF — et il reste structurellement optimiste : le générateur dérive toutes les features d'un
+> facteur latent unique, plus séparable qu'un vrai portefeuille de crédit. Ce dépôt contient la
+> version *engineering-grade* de ce prototype, prête à accueillir les données réelles CIF via le
+> protocole d'audit V1.1.
 
 ## Architecture (alignée sur le cahier du cabinet)
 
@@ -88,10 +91,15 @@ documentées :
   de split aléatoire. La coupure suit l'ordre temporel (proxy `customer_id` sur le jeu synthétique,
   à substituer par une vraie colonne `application_date` sur les données réelles). Verrouillé par
   `tests/unit/test_temporal_split.py`.
-- **Garde anti-leakage** (`src/features/validate.py` + `src/features/builder.py`) : toute variable de
-  fuite (ex : `p_default_true`) provoque une **erreur bloquante** au feature engineering et une
-  **réponse 422** à l'API. Le générateur (`src/data/synthetic.py`) **ne diffuse plus** `p_default_true`
-  dans la table clients (purge à la source). Verrouillé par `tests/unit/test_leakage.py` et
+- **Garde anti-leakage** (`src/features/validate.py` + `src/features/builder.py`) : deux niveaux.
+  (1) Blocklist nominale : toute variable de fuite nommée (ex : `p_default_true`) provoque une
+  **erreur bloquante** au feature engineering et une **réponse 422** à l'API. Le générateur
+  (`src/data/synthetic.py`) **ne diffuse plus** `p_default_true` dans la table clients (purge à la
+  source). (2) Garde structurelle (`assert_no_correlation_leakage`) : toute feature dont la
+  corrélation avec la cible dépasse 0.75 est bloquante — détecte une fuite **sémantique** qu'un nom
+  de colonne innocent ne révélerait pas (cas historique corrigé : `historical_default_rate` dérivée
+  d'un `loan_status` lui-même calculé à partir de la cible, corrélation ≈0.94, jamais détectée par
+  la seule blocklist nominale). Verrouillé par `tests/unit/test_leakage.py` et
   `tests/integration/test_api.py`.
 - **Feature-set = modèle officiel calibré** (`src/features/builder.py`) : les 25 features du `cifci`
   (profil/revenu, agrégation des prêts, ratios dérivés) sont reconstruites comme source de vérité
@@ -104,7 +112,7 @@ documentées :
 Phase 1 — Infrastructure (ce dépôt). Phase 2 — Reproduction du prototype synthétique.
 Phase 3 — Protocole données réelles CIF (shadow mode).
 
-**Rigueur exécutée** : 72 tests verts, ruff et `mypy --strict` sans erreur.
+**Rigueur exécutée** : 75 tests verts, ruff et `mypy --strict` sans erreur.
 
 ## Avancement selon le plan du cabinet (retour.txt)
 
@@ -113,9 +121,9 @@ Phase 3 — Protocole données réelles CIF (shadow mode).
 | 1 — Repo & Fondations | Structure `src/config`, `src/features/definitions/` (25 contrats), settings Pydantic | ✅ `971deeb` |
 | 2 — API | `/v1/predict`, `/v1/auth/token`, JWT HS256, rate limiting, `X-Request-ID`, `extra="forbid"` | ✅ `030ece9` |
 | 3 — Base de données | `migrations/` (Alembic), `src/services/audit_service.py`, `src/services/predictor.py`, tables PostgreSQL 16 (customers, predictions, audit_log, model_versions) | ✅ |
-| 4 — MLflow + Monitoring | `src/models/train.py`, `src/models/model_card.py`, `src/monitoring/drift_report.py` | ⏳ |
-| 5 — Kubernetes + Terraform | `terraform/main.tf`, `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/ingress.yaml`, `docker/Dockerfile` | ⏳ |
-| 6 — CI/CD Canary | `.github/workflows/deploy.yml`, `k8s/rollback.yaml` | ⏳ |
+| 4 — MLflow + Monitoring | `src/models/train.py`, `src/models/model_card.py`, `src/monitoring/drift_report.py` | ✅ `117e8a6` |
+| 5 — Kubernetes + Terraform | `terraform/main.tf`, `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/ingress.yaml`, `docker/Dockerfile` | ✅ `637e402` |
+| 6 — CI/CD Canary | `.github/workflows/deploy.yml`, `scripts/deploy.sh` | ✅ `61c34e7` — rollback K8s dédié restant à écrire |
 
 Base de données : le schéma (customers, predictions, audit_log, model_versions) est porté par
 `migrations/` (Alembic, cible PostgreSQL 16). En local/test, l'audit peut pointer sur SQLite

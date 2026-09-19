@@ -1,0 +1,69 @@
+{
+  "name_version": "cif_credit_official:1.0.1",
+  "model_name": "cif_credit_official",
+  "version": "1.0.1",
+  "model_type": "classification_binaire",
+  "algorithm": "XGBClassifier + CalibratedClassifierCV(isotonic)",
+  "owner": "TELQAN / CIF Credit Intelligence",
+  "contact": "contact@cif-digital-platform.test",
+  "intended_use": "Scoring de crédit (estimation de la probabilité de défaut) des clients CIF/DigiCoop-WA+ ; décision finale sous revue humaine (human-in-the-loop) obligatoire.",
+  "target_population": "Détenteurs de produits CIF/DigiCoop-WA+ (pilot synthétique et réel).",
+  "decision_thresholds": {
+    "approve": 0.1,
+    "review": 0.25,
+    "hard_reject": 0.5
+  },
+  "training_metrics": {
+    "roc_auc": 0.940433,
+    "pr_auc": 0.713377,
+    "brier": 0.053398,
+    "log_loss": 0.178205,
+    "ece": 0.013843,
+    "calibration_slope": 1.023469,
+    "calibration_intercept": -0.041141
+  },
+  "training_date": "2026-09-18T19:25:36.126391+00:00",
+  "features": [
+    "age",
+    "seniority_months",
+    "monthly_income",
+    "current_loan_request",
+    "current_loan_duration",
+    "current_savings",
+    "avg_savings_24m",
+    "savings_std_24m",
+    "savings_volatility",
+    "savings_stability",
+    "loan_to_savings_ratio",
+    "savings_to_income_ratio",
+    "n_past_loans",
+    "n_loans",
+    "avg_loan_amount",
+    "total_loan_amount",
+    "avg_repayment_regularity",
+    "min_repayment_regularity",
+    "max_historical_dpd",
+    "mean_historical_dpd",
+    "n_defaults",
+    "historical_default_rate",
+    "overall_payment_regularity",
+    "loan_to_income_ratio",
+    "seniority_years"
+  ],
+  "calibration_method": "isotonic",
+  "monitoring_thresholds": {
+    "roc_auc_min": 0.65,
+    "ece_max": 0.1,
+    "psi_max": 0.25
+  },
+  "limitations": [
+    "Modèle entraîné sur données synthétiques pour le pilot.",
+    "Pas de décision contractuelle sans revue humaine (REVUE_HUMAINE).",
+    "À ré-entraîner sur les données réelles CIF (protocole shadow mode).",
+    "Le générateur synthétique dérive toutes les features d'un facteur latent unique : le ROC-AUC observé (≈0.94) surestime structurellement la séparabilité attendue sur données réelles, multi-causales et non stationnaires. À réévaluer sur données CIF réelles."
+  ],
+  "fairness_notes": "Audit d'équité à reproduire sur données réelles (disparités par profil non fiabilisées sur données synthétiques).",
+  "data_sources": [
+    "Prototype synthétique TELQAN (audit phases A-F)"
+  ]
+}

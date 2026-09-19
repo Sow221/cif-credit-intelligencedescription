@@ -6,7 +6,11 @@ name: cif-credit-intelligence
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # Miroir Google (mirror.gcr.io) plutôt que docker.io direct : les runners CI
+    # partagent des IP fréquemment throttlées par la limite de débit anonyme de
+    # Docker Hub (confirmé en pratique : "pull access denied" en CI, image publique
+    # pourtant valide). Aucune authentification requise, zéro nouveau secret.
+    image: mirror.gcr.io/library/postgres:16-alpine
     environment:
       POSTGRES_USER: ${PG_USER:-mlflow}
       POSTGRES_PASSWORD: ${PG_PASSWORD:-mlflow}
@@ -21,7 +25,11 @@ services:
     networks: [cif]
 
   minio:
-    image: minio/minio:latest
+    # mirror.gcr.io ne mirrore de façon fiable que les images "library" officielles
+    # (confirmé en pratique : "manifest unknown" pour minio/minio:latest via le miroir).
+    # MinIO publie ses propres images sur quay.io, qui n'a pas la même limite de débit
+    # anonyme agressive que Docker Hub pour les IP de CI partagées.
+    image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-mlflow}
@@ -33,6 +41,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [cif]
+
+  # Job unique : MinIO démarre sans buckets — sans ça, MLflow échoue au premier
+  # upload d'artefact avec NoSuchBucket (confirmé en pratique en CI).
+  createbuckets:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-mlflow} ${MINIO_ROOT_PASSWORD:-mlflowminio} &&
+      mc mb --ignore-existing local/mlflow-artifacts
+      "
     networks: [cif]
 
   mlflow:
@@ -51,8 +73,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
       minio:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks: [cif]
 
   dagster:
@@ -72,7 +102,7 @@ services:
       - ../data:/app/data
     depends_on:
       mlflow:
-        condition: service_started
+        condition: service_healthy
     networks: [cif]
 
   api:
@@ -85,11 +115,11 @@ services:
       MLFLOW_TRACKING_URI: http://mlflow:5000
     depends_on:
       mlflow:
-        condition: service_started
+        condition: service_healthy
     networks: [cif]
 
   prometheus:
-    image: prom/prometheus:v2.53.0
+    image: mirror.gcr.io/prom/prometheus:v2.53.0
     ports:
       - "9090:9090"
     volumes:
@@ -104,7 +134,7 @@ services:
     networks: [cif]
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: mirror.gcr.io/prom/alertmanager:v0.27.0
     ports:
       - "9093:9093"
     volumes:
@@ -113,7 +143,7 @@ services:
     networks: [cif]
 
   grafana:
-    image: grafana/grafana:11.1.0
+    image: mirror.gcr.io/grafana/grafana:11.1.0
     ports:
       - "3001:3000"
     environment:
