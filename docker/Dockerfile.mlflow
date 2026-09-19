@@ -23,6 +23,11 @@ EXPOSE 5000
 # que résolu par MLFLOW_TRACKING_URI=http://mlflow:5000 côté API/Dagster/CI) n'est ni
 # l'un ni l'autre et se faisait bloquer. Réseau interne isolé (voir en-tête du compose) :
 # élargir aux clients internes est sans risque, pas une exposition publique.
+# Vérifié dans mlflow/server/security_utils.py : is_allowed_host_header() fait un match
+# EXACT sauf si le motif contient "*" (fnmatch) — et le Host header inclut le port
+# ("localhost:5000"). Le défaut de MLflow lui-même génère "localhost:*" pour ça ; on
+# reproduit le même motif pour "mlflow" (confirmé : sans wildcard, "localhost" seul
+# rejette "localhost:5000" avec un 403, le défaut le tolérait via son propre "localhost:*").
 CMD mlflow server \
     --host 0.0.0.0 \
     --port 5000 \
@@ -30,4 +35,4 @@ CMD mlflow server \
     --default-artifact-root mlflow-artifacts:/ \
     --artifacts-destination "$ARTIFACT_ROOT" \
     --serve-artifacts \
-    --allowed-hosts "mlflow,localhost"
+    --allowed-hosts "mlflow,mlflow:*,localhost,localhost:*"
