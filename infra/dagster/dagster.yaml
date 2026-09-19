@@ -1,34 +1,13 @@
-# Configuration Dagster — stockage local des run/artifacts
+# Configuration Dagster — stockage local (sqlite) sur le volume dagster_home.
+#
+# Volontairement minimal : le bloc `storage` unifié configure à lui seul le
+# run storage, l'event log storage, le schedule storage ET les compute logs
+# avec des défauts sqlite/locaux sains (vérifié via DagsterInstance.get()).
+# L'ancienne config de ce fichier dupliquait ça avec des clés `run_storage`/
+# `event_log_storage` séparées ET obsolètes (chemins `dagster.core.*`,
+# introuvables depuis Dagster 1.x — le module racine est `dagster._core`) :
+# Dagster rejetait le fichier au démarrage ("Found config for `storage` which
+# is incompatible with `run_storage`, ..."), confirmé en CI.
 storage:
   sqlite:
     base_dir: /opt/dagster/home/storage
-
-compute_logs:
-  module: dagster.core.storage.local_compute_log_manager
-  class: LocalComputeLogManager
-  config:
-    base_dir: /opt/dagster/home/logs
-
-scheduler:
-  module: dagster.core.scheduler
-  class: DagsterDaemonScheduler
-
-run_coordinator:
-  module: dagster.core.run_coordinator
-  class: QueuedRunCoordinator
-
-run_launcher:
-  module: dagster.core.launcher
-  class: DefaultRunLauncher
-
-run_storage:
-  module: dagster.core.storage.runs
-  class: SqliteRunStorage
-  config:
-    base_dir: /opt/dagster/home/runs
-
-event_log_storage:
-  module: dagster.core.storage.event_log
-  class: SqliteEventLogStorage
-  config:
-    base_dir: /opt/dagster/home/event_logs
