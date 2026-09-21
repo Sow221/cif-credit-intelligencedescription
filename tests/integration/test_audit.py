@@ -71,7 +71,7 @@ def test_prediction_rows_contain_required_fields(audit):
     row = rows[0]
     assert row["event"] == AuditEvent.PREDICTION_REQUESTED.value
     assert row["request_id"]
-    assert row["model_version"] == "models:/cif_credit_official/latest"
+    assert row["model_version"] == "models:/cif_credit_official@champion"
     assert "decision" in row["payload"]
     assert "probability" in row["payload"]
 

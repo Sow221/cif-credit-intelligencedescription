@@ -143,7 +143,7 @@ class ServingConfig:
 
     host: str = "0.0.0.0"
     port: int = 8000
-    model_uri: str = "models:/cif_credit_official/latest"
+    model_uri: str = "models:/cif_credit_official@champion"
     request_limits: dict[str, int] = field(default_factory=lambda: {"rate_per_minute": 120})
 
 

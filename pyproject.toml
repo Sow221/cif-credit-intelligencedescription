@@ -70,6 +70,8 @@ cif-export-model = "cli.export_model:main"
 cif-decision = "cli.decision:main"
 cif-ingest-lc = "cli.ingest_lending_club:main"
 cif-benchmark = "cli.benchmark:main"
+cif-promote = "cli.promote:promote"
+cif-rollback = "cli.promote:rollback_cmd"
 cif-api = "api.app:main"
 
 [build-system]

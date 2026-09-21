@@ -86,7 +86,7 @@ def create_app(
         model_uri
         or os.environ.get("CIF_MODEL_URI")
         or os.environ.get("MODEL_URI")
-        or "models:/cif_credit_official/latest"
+        or "models:/cif_credit_official@champion"
     )
     assert_production_secrets(jwt_secret or os.environ.get("CIF_JWT_SECRET"))
     if model is None and os.environ.get("MLFLOW_TRACKING_URI"):

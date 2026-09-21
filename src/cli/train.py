@@ -7,6 +7,7 @@ import mlflow
 import pandas as pd
 
 from config import load_config
+from models.promotion import latest_version, promote_if_better
 from models.train import train_and_log
 from utils.logging import get_logger
 
@@ -40,6 +41,11 @@ def main(
         register=register,
         run_name=f"xgboost_{cfg.model.algorithm}",
     )
+
+    if register:
+        client = mlflow.tracking.MlflowClient()
+        decision = promote_if_better(client, "cif_credit_official", latest_version(client, "cif_credit_official"))
+        logger.info("cli.train.promotion", promoted=decision.promoted, reason=decision.reason)
 
     logger.info(
         "cli.train.done",
