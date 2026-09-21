@@ -20,6 +20,7 @@ from fastapi import FastAPI
 
 from api.middleware import MetricsMiddleware, RateLimiter, RequestIDMiddleware
 from api.routes import router_plain, router_v1
+from api.security import assert_production_secrets
 from config.schema import FeatureConfig
 from config.settings import get_settings
 from models.train import feature_columns
@@ -79,7 +80,15 @@ def create_app(
             est fournie via ``CIF_DATABASE__URL``, il est construit automatiquement.
     """
     settings = get_settings()
-    uri = model_uri or "models:/cif_credit_official/latest"
+    # Ordre de résolution : argument > CIF_MODEL_URI / MODEL_URI (images déployées, modèle
+    # exporté sur disque) > registry MLflow (stack locale).
+    uri = (
+        model_uri
+        or os.environ.get("CIF_MODEL_URI")
+        or os.environ.get("MODEL_URI")
+        or "models:/cif_credit_official/latest"
+    )
+    assert_production_secrets(jwt_secret or os.environ.get("CIF_JWT_SECRET"))
     if model is None and os.environ.get("MLFLOW_TRACKING_URI"):
         mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 

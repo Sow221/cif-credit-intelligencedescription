@@ -1,7 +1,7 @@
 version: "3.8"
 
 # Stack d'observabilité standard (Prometheus + Grafana) scrapant l'API CIF.
-# Usage : docker compose -f observability/docker-compose.yml up
+# Usage : docker compose -f infra/observability/docker-compose.yml up
 services:
   api:
     image: ghcr.io/sow221/cif-credit-intelligence/api:latest

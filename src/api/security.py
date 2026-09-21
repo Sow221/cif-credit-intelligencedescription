@@ -34,6 +34,23 @@ def _client_secret() -> str:
     return os.environ.get("CIF_API_CLIENT_SECRET", DEFAULT_CLIENT_SECRET)
 
 
+def assert_production_secrets(jwt_secret: str | None) -> None:
+    """Refuse de démarrer en production avec un secret par défaut ou non configuré.
+
+    Actif quand ``CIF_ENV=production``. En dev/test, un secret JWT aléatoire est généré à
+    chaque démarrage (jamais une valeur connue) et le secret client par défaut reste toléré.
+    """
+    if os.environ.get("CIF_ENV", "dev").lower() != "production":
+        return
+    problems: list[str] = []
+    if not jwt_secret or jwt_secret == DEFAULT_CLIENT_SECRET:
+        problems.append("CIF_JWT_SECRET absent ou égal à la valeur par défaut")
+    if _client_secret() == DEFAULT_CLIENT_SECRET:
+        problems.append("CIF_API_CLIENT_SECRET vaut la valeur par défaut")
+    if problems:
+        raise RuntimeError("Configuration de production invalide : " + " ; ".join(problems))
+
+
 def check_credentials(client_id: str, client_secret: str) -> bool:
     """Vérifie les credentials d'un client (comparaison à temps constant)."""
     return hmac.compare_digest(client_id, _client_id()) and hmac.compare_digest(client_secret, _client_secret())

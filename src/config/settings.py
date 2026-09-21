@@ -10,6 +10,7 @@ La config ML (Hydra + YAML) reste pilotée par ``config.load.load_config`` pour 
 
 from __future__ import annotations
 
+import secrets
 from functools import lru_cache
 from typing import Literal
 
@@ -45,8 +46,8 @@ class ModelSettings(BaseModel):
     algorithm: str = "xgboost"
     test_size: float = 0.2
     random_state: int = 42
-    max_depth: int = 6
-    learning_rate: float = 0.1
+    max_depth: int = 4
+    learning_rate: float = 0.03
     n_estimators: int = 300
     calibration_enabled: bool = True
     calibration_method: CalibrationMethod = "isotonic"
@@ -111,7 +112,7 @@ class Settings(BaseSettings):
     api: ApiSettings = ApiSettings()
     database: DatabaseSettings = DatabaseSettings()
 
-    jwt_secret: SecretStr = Field(default=SecretStr("change-me-in-production"), min_length=8)
+    jwt_secret: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(32)), min_length=8)
     log_level: str = "INFO"
 
     @classmethod
@@ -131,8 +132,8 @@ class Settings(BaseSettings):
                 algorithm=cfg.model.algorithm,
                 test_size=cfg.model.test_size,
                 random_state=cfg.model.random_state,
-                max_depth=int(cfg.model.xgboost.get("max_depth", 6)),
-                learning_rate=float(cfg.model.xgboost.get("learning_rate", 0.1)),
+                max_depth=int(cfg.model.xgboost.get("max_depth", 4)),
+                learning_rate=float(cfg.model.xgboost.get("learning_rate", 0.03)),
                 n_estimators=int(cfg.model.xgboost.get("n_estimators", 300)),
                 calibration_enabled=cfg.model.calibration.enabled,
                 calibration_method=cfg.model.calibration.method,

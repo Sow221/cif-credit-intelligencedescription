@@ -21,7 +21,6 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     MLFLOW_TRACKING_URI=http://mlflow:5000 \
-    CIF_JWT_SECRET=change-me-in-production \
     PYTHONPATH=/app/src
 
 WORKDIR /app

@@ -176,7 +176,6 @@ def generate_customers(cfg: DataConfig, latent: np.ndarray, b0: float, scale: fl
             "is_default": is_default,
         }
     )
-    df.columns = [c.upper() if False else c for c in df.columns]
     return df[CUSTOMER_COLUMNS]
 
 

@@ -29,8 +29,13 @@ case "${OSTYPE:-}" in
 esac
 export KUBECONFIG="$KCFG"
 
-kubectl apply -f ../k8s/namespace.yaml -f ../k8s/secret.yaml \
-  -f ../k8s/deployment.yaml -f ../k8s/service.yaml
+# Secrets générés à la volée : jamais de valeur par défaut committée (cf. k8s/secret.yaml).
+kubectl apply -f ../k8s/namespace.yaml
+kubectl -n cif create secret generic cif-api-secret \
+  --from-literal=jwt="$(openssl rand -hex 32)" \
+  --from-literal=client_secret="$(openssl rand -hex 16)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f ../k8s/deployment.yaml -f ../k8s/service.yaml
 kubectl -n cif rollout status deployment/cif-api --timeout=180s
 
 echo

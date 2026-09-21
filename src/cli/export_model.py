@@ -1,9 +1,9 @@
 """CLI : cif-export-model — exporte un modèle autonome (sans registry MLflow) pour Docker/HF Spaces.
 
 Contrairement à `cif-register-model` (registry MLflow + model card, nécessite un tracking
-server), cette commande produit un dossier MLflow "flavor" autosuffisant (``model_export/``)
+server), cette commande produit un dossier MLflow "flavor" autosuffisant (``deploy/model/``)
 chargeable directement par ``mlflow.sklearn.load_model(path)`` sans aucune dépendance réseau —
-c'est l'artefact "cuit" dans l'image Docker de l'API (voir ``spaces/Dockerfile``).
+c'est l'artefact "cuit" dans l'image Docker de l'API (voir ``deploy/huggingface/Dockerfile``).
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ _SKOPS_TRUSTED_TYPES = [
 
 
 @click.command()
-@click.option("--output", type=str, default="model_export", help="Dossier de sortie.")
+@click.option("--output", type=str, default="deploy/model", help="Dossier de sortie.")
 @click.option("--seed", type=int, default=None, help="Seed de reproductibilité (défaut : config).")
 def main(output: str, seed: int | None) -> None:
     """Génère les données, entraîne le modèle officiel, exporte un artefact autonome."""

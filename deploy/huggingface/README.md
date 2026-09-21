@@ -26,14 +26,14 @@ Token : `POST /v1/auth/token` avec `client_id=cif-agent`,
 ## 2. Image Docker (locale)
 
 ```bash
-docker build -f spaces/Dockerfile -t cif-api .
+docker build -f deploy/huggingface/Dockerfile -t cif-api .
 docker run -p 8000:8000 cif-api
 ```
 
 ## 3. CI/CD → GHCR
 
 `push` sur `main` déclenche `.github/workflows/deploy.yml` : build de l'image
-(avec le modèle cuit dans `model_export/`) et push vers
+(avec le modèle cuit dans `deploy/model/`) et push vers
 `ghcr.io/sow221/cif-credit-intelligence/api:latest`.
 
 **À faire une fois** : dans GitHub → Packages → rendre le package `api`
@@ -41,7 +41,7 @@ docker run -p 8000:8000 cif-api
 
 ## 4. Hugging Face Space (demo publique)
 
-Créer un Space de type **Docker**, et utiliser `spaces/space.Dockerfile`
+Créer un Space de type **Docker**, et utiliser `deploy/huggingface/space.Dockerfile`
 comme Dockerfile (3 lignes pointant vers l'image GHCR publique). HF expose
 automatiquement le port `7860`. URL publique obtenue après le build du Space.
 

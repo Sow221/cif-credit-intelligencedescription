@@ -10,8 +10,8 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src ./src
-COPY model_export /app/model
-COPY spaces/run.py ./run.py
+COPY deploy/model /app/model
+COPY deploy/huggingface/run.py ./run.py
 
 RUN pip install --no-cache-dir .
 

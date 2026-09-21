@@ -11,7 +11,7 @@ import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from api.middleware import RateLimiter
@@ -69,9 +69,9 @@ def health(request: Request) -> HealthResponse:
 
 
 @router_plain.get("/metrics", include_in_schema=False)
-def metrics() -> JSONResponse:
+def metrics() -> Response:
     """Métriques Prometheus exposées au scraper."""
-    return JSONResponse(content=generate_latest().decode("utf-8"), media_type=CONTENT_TYPE_LATEST)
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @router_v1.post("/auth/token", response_model=TokenResponse, tags=["auth"])

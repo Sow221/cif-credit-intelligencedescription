@@ -28,12 +28,17 @@ src/
 ├── cli/                  # Commandes cif-*
 └── utils/                # Logging structuré, reproductibilité
 migrations/               # Alembic (schema PostgreSQL versionné)
-terraform/                # Infrastructure as Code (Oracle Cloud)
-k8s/                      # Manifests Kubernetes (deployment, service, ingress, rollback)
 pipelines/                # Définitions Dagster (assets, jobs, schedules)
-infra/                    # Docker Compose, Grafana, Prometheus, MLflow
+conf/                     # Configuration Hydra/YAML (data, model, decision, evaluation, serving)
+data/                     # Données (non versionnées, voir data/README.md) + model cards + baseline drift
+deploy/                   # Cibles de déploiement : huggingface/ (démo), model/ (modèle exporté cuit dans l'image)
+docker/                   # Dockerfiles (api, dagster, mlflow)
+infra/                    # Stack locale : Compose, Prometheus, Grafana, Alertmanager, observability/
+k8s/  terraform/          # Cible production (K3s + Oracle Cloud)
+scripts/                  # Scripts d'exploitation (deploy, téléchargement des données)
 tests/                    # Tests unitaires et d'intégration
-docs/                     # ADR, model cards, runbooks
+docs/                     # Charte, ADR (adr/), runbooks (runbooks/), rapports de validation (validation/)
+reports/                  # Rapports générés publiables (métriques, backtests)
 ```
 
 ## Stack
@@ -112,7 +117,7 @@ documentées :
 Phase 1 — Infrastructure (ce dépôt). Phase 2 — Reproduction du prototype synthétique.
 Phase 3 — Protocole données réelles CIF (shadow mode).
 
-**Rigueur exécutée** : 75 tests verts, ruff et `mypy --strict` sans erreur.
+**Rigueur exécutée** : 78 tests verts (unitaires + intégration, tous exécutés en CI), couverture 73 % (seuil CI : 70 %, cible : 90 %), ruff et `mypy --strict` sans erreur.
 
 ## Avancement selon le plan du cabinet (retour.txt)
 

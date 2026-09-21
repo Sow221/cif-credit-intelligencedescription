@@ -4,6 +4,7 @@ Couvre les exigences du cabinet : authentification JWT, rate limiting par client
 validation stricte extra="forbid", endpoints /v1/predict et /v1/health.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 from xgboost import XGBClassifier
 
@@ -130,3 +131,26 @@ def test_predict_rejects_forbidden_feature():
     with TestClient(app) as client:
         resp = client.post("/v1/predict", json=payload)
         assert resp.status_code == 422
+
+
+def test_metrics_endpoint_is_prometheus_text():
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
+    with TestClient(app) as client:
+        r = client.get("/metrics")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/plain")
+    assert "cif_http_requests_total" in r.text
+
+
+def test_production_refuses_default_secrets(monkeypatch):
+    monkeypatch.setenv("CIF_ENV", "production")
+    monkeypatch.delenv("CIF_API_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("CIF_JWT_SECRET", raising=False)
+    with pytest.raises(RuntimeError, match="production"):
+        create_app(model=_stub_model(), auth_enabled=False)
+
+
+def test_model_uri_read_from_env(monkeypatch):
+    monkeypatch.setenv("MODEL_URI", "/app/model")
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
+    assert app.state.model_version == "/app/model"

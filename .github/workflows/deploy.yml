@@ -26,7 +26,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: spaces/Dockerfile
+          file: deploy/huggingface/Dockerfile
           push: true
           tags: |
             ghcr.io/sow221/cif-credit-intelligence/api:latest

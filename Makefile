@@ -31,3 +31,8 @@ verify:
 
 clean:
 	cd terraform && terraform destroy -auto-approve
+
+# --- Données ---
+.PHONY: data-download
+data-download:
+	./scripts/download_lending_club.sh
