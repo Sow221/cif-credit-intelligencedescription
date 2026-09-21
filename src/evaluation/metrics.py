@@ -8,6 +8,7 @@ from sklearn.metrics import (
     brier_score_loss,
     log_loss,
     roc_auc_score,
+    roc_curve,
 )
 
 
@@ -33,6 +34,8 @@ def compute_all_metrics(y_true: np.ndarray, y_prob: np.ndarray) -> dict[str, flo
 
     return {
         "roc_auc": roc_auc,
+        "gini": 2.0 * roc_auc - 1.0,
+        "ks": ks_statistic(y_true, y_prob),
         "pr_auc": pr_auc,
         "brier": brier,
         "log_loss": ll,
@@ -40,6 +43,13 @@ def compute_all_metrics(y_true: np.ndarray, y_prob: np.ndarray) -> dict[str, flo
         "calibration_slope": slope,
         "calibration_intercept": intercept,
     }
+
+
+def ks_statistic(y_true: np.ndarray, y_prob: np.ndarray) -> float:
+    """Statistique de Kolmogorov-Smirnov : écart maximal entre les distributions de score des
+    mauvais et des bons payeurs (mesure standard de pouvoir séparateur en crédit)."""
+    fpr, tpr, _ = roc_curve(np.asarray(y_true, dtype=int), np.asarray(y_prob, dtype=float))
+    return float(np.max(tpr - fpr))
 
 
 def calibration_metrics(y_true: np.ndarray, y_prob: np.ndarray, n_bins: int = 10) -> tuple[float, float, float]:

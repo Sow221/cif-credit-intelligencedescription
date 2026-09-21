@@ -1,0 +1,12 @@
+# Jeu public Lending Club (données réelles) — périmètre à label mature, découpage temporel
+lending_club:
+  raw_dir: data/raw/lending_club
+  term_months: 36
+  issue_start: "2009-01-01"
+  issue_end: "2015-12-31"
+  train_end: "2013-12-31"
+  valid_end: "2014-12-31"
+  exclude_lender_score: true
+  tuning_trials: 30
+  tuning_max_rows: 200000
+  seed: 42

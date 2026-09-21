@@ -1,0 +1,30 @@
+# Pipeline reproductible : `dvc repro` (ou `make pipeline`). Données brutes : `dvc add data/raw/lending_club`
+# après `make data-download`. Les entrées/sorties sont hachées : un changement de code, de
+# configuration ou de données relance uniquement les étapes concernées.
+stages:
+  ingest:
+    cmd: cif-ingest-lc
+    deps:
+      - data/raw/lending_club
+      - src/data/lending_club.py
+      - src/data/validation.py
+      - src/features/lending_club.py
+      - conf/lending_club.yaml
+    outs:
+      - data/interim/lending_club_clean.parquet
+      - data/processed/lending_club_features.parquet
+  benchmark:
+    cmd: cif-benchmark --out reports/lending_club
+    deps:
+      - data/processed/lending_club_features.parquet
+      - src/models/scoring.py
+      - src/models/tuning.py
+      - src/pipelines/benchmark.py
+      - src/evaluation
+      - conf/lending_club.yaml
+    metrics:
+      - reports/lending_club/metrics.json:
+          cache: false
+    plots:
+      - reports/lending_club/benchmark.png:
+          cache: false

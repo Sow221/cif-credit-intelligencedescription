@@ -5,6 +5,7 @@ from config.schema import (
     DecisionConfig,
     EvaluationConfig,
     FeatureConfig,
+    LendingClubConfig,
     ModelConfig,
     ServingConfig,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "DecisionConfig",
     "EvaluationConfig",
     "FeatureConfig",
+    "LendingClubConfig",
     "ModelConfig",
     "ServingConfig",
     "load_config",

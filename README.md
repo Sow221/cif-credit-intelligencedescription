@@ -49,7 +49,8 @@ reports/                  # Rapports générés publiables (métriques, backtest
 | Config | Pydantic v2 (settings) + Hydra (YAML) |
 | Orchestration | Dagster (assets versionnés, lineage) |
 | Tracking & registry | MLflow (Postgres + MinIO) |
-| Qualité de données | Great Expectations + Pydantic v2 |
+| Qualité de données | Pandera (contrat de données bloquant) + Pydantic v2 |
+| Versionnement des données | DVC (`dvc.yaml` : ingest → benchmark) |
 | Monitoring | Evidently + Prometheus + Grafana + Alertmanager |
 | Serving | FastAPI, modèle servi depuis le registry |
 | BDD | PostgreSQL 16 + Alembic (audit trail) |
@@ -111,6 +112,19 @@ documentées :
   unique, avec contrats (`src/features/definitions/`) et tests.
 - **Hyperparamètres du modèle alignés sur l'officiel calibré** : `max_depth=4`, `learning_rate=0.03`,
   `n_estimators=300`.
+
+## Validation sur données publiques réelles (Lending Club)
+
+```bash
+pip install -e ".[dev,data]"
+make data-download      # Kaggle CLI, voir data/README.md
+make pipeline           # ingest (validation Pandera) puis benchmark (baseline vs XGBoost)
+```
+
+Protocole out-of-time (ADR `docs/adr/`) : split par date d'octroi, baseline logistique, XGBoost
+contraint par monotonicité (Optuna, CV temporelle), calibration isotonique sur la validation,
+test évalué une fois, champion retenu seulement si l'écart d'AUC est statistiquement démontré.
+Ces résultats valident la **méthode**, pas la performance sur le portefeuille CIF.
 
 ## État
 

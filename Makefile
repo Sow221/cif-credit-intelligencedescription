@@ -36,3 +36,19 @@ clean:
 .PHONY: data-download
 data-download:
 	./scripts/download_lending_club.sh
+
+# --- Pipeline de validation (données publiques Lending Club) ---
+.PHONY: ingest benchmark pipeline test lint
+ingest:
+	cif-ingest-lc
+
+benchmark:
+	cif-benchmark
+
+pipeline: ingest benchmark
+
+lint:
+	ruff check . && ruff format --check . && mypy src
+
+test:
+	pytest -q tests

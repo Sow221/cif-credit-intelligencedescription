@@ -148,6 +148,32 @@ class ServingConfig:
 
 
 @dataclass
+class LendingClubConfig:
+    """Jeu public Lending Club — validation de la méthode sur données réelles.
+
+    Le périmètre est choisi pour que le label soit *mature* : prêts à 36 mois émis au plus
+    tard fin 2015 sont tous arrivés à échéance dans un fichier arrêté au T4 2018. Inclure des
+    prêts plus récents ou à 60 mois biaiserait le taux de défaut (censure à droite).
+    """
+
+    raw_dir: str = "data/raw/lending_club"
+    interim_path: str = "data/interim/lending_club_clean.parquet"
+    processed_path: str = "data/processed/lending_club_features.parquet"
+    term_months: int = 36
+    issue_start: str = "2009-01-01"
+    issue_end: str = "2015-12-31"
+    # Découpage temporel : entraînement <= train_end < validation <= valid_end < test
+    train_end: str = "2013-12-31"
+    valid_end: str = "2014-12-31"
+    # grade / sub_grade / int_rate sont la sortie du scoring interne du prêteur : les utiliser
+    # reviendrait à empiler un modèle sur un modèle. Exclus par défaut (voir docs/adr).
+    exclude_lender_score: bool = True
+    tuning_trials: int = 30
+    tuning_max_rows: int = 200_000
+    seed: int = 42
+
+
+@dataclass
 class AppConfig:
     """Configuration racine du projet."""
 
@@ -157,3 +183,4 @@ class AppConfig:
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     decision: DecisionConfig = field(default_factory=DecisionConfig)
     serving: ServingConfig = field(default_factory=ServingConfig)
+    lending_club: LendingClubConfig = field(default_factory=LendingClubConfig)

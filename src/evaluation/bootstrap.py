@@ -56,3 +56,36 @@ def bootstrap_metrics(
         }
     logger.info("evaluation.bootstrap.done", n_iterations=len(next(iter(samples.values()))), metrics=result)
     return result
+
+
+def paired_auc_difference(
+    y_true: np.ndarray,
+    prob_a: np.ndarray,
+    prob_b: np.ndarray,
+    n_iterations: int = 500,
+    seed: int = 42,
+) -> dict[str, float]:
+    """IC95% bootstrap *apparié* de AUC(a) - AUC(b) sur les mêmes échantillons.
+
+    Sert à décider si un modèle complexe bat réellement la baseline : si la borne basse de
+    l'IC est <= 0, l'écart n'est pas démontré et la baseline (plus simple) est retenue.
+    """
+    from sklearn.metrics import roc_auc_score
+
+    rng = np.random.default_rng(seed)
+    y = np.asarray(y_true, dtype=int)
+    a = np.asarray(prob_a, dtype=float)
+    b = np.asarray(prob_b, dtype=float)
+    n = len(y)
+    diffs: list[float] = []
+    for _ in range(n_iterations):
+        idx = rng.integers(0, n, n)
+        if y[idx].min() == y[idx].max():
+            continue
+        diffs.append(float(roc_auc_score(y[idx], a[idx]) - roc_auc_score(y[idx], b[idx])))
+    arr = np.asarray(diffs)
+    return {
+        "diff_mean": float(arr.mean()),
+        "ci_low": float(np.percentile(arr, 2.5)),
+        "ci_high": float(np.percentile(arr, 97.5)),
+    }
