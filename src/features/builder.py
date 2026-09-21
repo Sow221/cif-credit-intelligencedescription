@@ -51,9 +51,21 @@ _CUSTOMER_FEATURE_COLS = [
 ]
 
 
-def aggregate_loans(loans: pd.DataFrame) -> pd.DataFrame:
-    """Agrège l'historique de prêts par client en features numériques (HISTORY)."""
+def aggregate_loans(loans: pd.DataFrame, customers: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Agrège l'historique de prêts par client en features numériques (HISTORY).
+
+    Jointure POINT-IN-TIME si ``customers`` fournit ``application_date`` : tout prêt daté à ou
+    après la demande courante du client est exclu de l'agrégation. Le générateur synthétique
+    garantit déjà cette propriété par construction (voir ``data/synthetic.py``), mais cette
+    garde reste nécessaire : de vraies données CIF n'offriraient aucune telle garantie, et
+    c'est exactement le genre de fuite temporelle qu'un simple split trié ne détecte pas.
+    """
     loans = loans.copy()
+    if customers is not None and "application_date" in customers.columns:
+        cutoff = customers[["customer_id", "application_date"]].rename(columns={"application_date": "_as_of"})
+        loans = loans.merge(cutoff, on="customer_id", how="left")
+        loans = loans[pd.to_datetime(loans["loan_start_date"]) < pd.to_datetime(loans["_as_of"])]
+        loans = loans.drop(columns=["_as_of"])
     agg = (
         loans.groupby("customer_id")
         .agg(
@@ -112,7 +124,7 @@ def build_features(
                 f"Variables de fuite détectées en entrée (customers) : {hits}. Supprimez-les avant tout entraînement."
             )
 
-    loan_agg = aggregate_loans(loans)
+    loan_agg = aggregate_loans(loans, customers)
     df = customers.merge(loan_agg, on="customer_id", how="left")
 
     # Remplit les clients sans historique (thin-file) par des neutres.
@@ -137,6 +149,8 @@ def build_features(
     df["overall_payment_regularity"] = df["avg_repayment_regularity"]
 
     out_cols = ["customer_id", *feature_columns]
+    if "application_date" in df.columns:
+        out_cols.append("application_date")
     if target in df.columns:
         out_cols.append(target)
     result = df[out_cols].copy()

@@ -71,6 +71,7 @@ def assert_no_leakage(
         allowed = set(feature_columns) | {
             "customer_id",
             "loan_id",
+            "application_date",  # métadonnée de jointure point-in-time, jamais une feature du modèle
             "is_default" if allow_target else "",
         }
         extra = [c for c in df.columns if c not in allowed]

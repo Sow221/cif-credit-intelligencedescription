@@ -47,22 +47,30 @@ def temporal_split(
     target: str,
     *,
     feature_cfg: FeatureConfig | None = None,
-    order_col: str = "customer_id",
+    order_col: str = "application_date",
     split_date: float = 0.8,
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
     """Split TEMPOREL (protocole CIF) : l'ordre des lignes est l'ordre du temps.
 
-    Remplace le split aléatoire (interdit par la discipline CIF). NB : le jeu
-    synthétique ne porte pas de vraie date ; le proxy temporel est l'ordre des
-    ``customer_id`` (les premiers contrats sont les plus anciens). À substituer
-    par une vraie colonne ``application_date`` sur les données CIF réelles.
+    Remplace le split aléatoire (interdit par la discipline CIF). Trie sur la vraie date de
+    demande (``application_date``, générée par ``data/synthetic.py`` avec une jointure
+    point-in-time réelle : aucun prêt historique n'est daté après la demande courante d'un
+    client). Sur données CIF réelles, cette même colonne existe nativement — aucun changement
+    de code requis, seul le proxy (l'ancien tri par ``customer_id``) aurait dû être remplacé.
 
     ``feature_cfg`` détermine la liste de colonnes utilisée ; par défaut la config
     officielle (25 features). La passer explicitement permet à l'ablation study de
     splitter sur un sous-ensemble de familles sans dupliquer cette logique.
+
+    ``application_date`` ne compte que ~550 valeurs distinctes sur potentiellement
+    des milliers de clients : les ex-aequo sont fréquents. Un tri stable seul les
+    départagerait par ordre d'arrivée dans ``df`` — non reproductible si l'appelant
+    passe les lignes dans un ordre différent. Departage explicite par ``customer_id``
+    pour un split déterministe, indépendant de l'ordre d'entrée.
     """
     cols = feature_columns(feature_cfg or FeatureConfig())
-    df = df.sort_values(order_col).reset_index(drop=True)
+    sort_cols = [order_col, "customer_id"] if "customer_id" in df.columns else [order_col]
+    df = df.sort_values(sort_cols, kind="mergesort").reset_index(drop=True)
     cutoff = int(len(df) * split_date)
     train_df = df.iloc[:cutoff].copy()
     val_df = df.iloc[cutoff:].copy()

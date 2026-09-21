@@ -25,6 +25,7 @@ logger = get_logger(__name__)
 
 CUSTOMER_COLUMNS = [
     "customer_id",
+    "application_date",
     "age",
     "gender",
     "sector",
@@ -103,6 +104,13 @@ def generate_customers(cfg: DataConfig, latent: np.ndarray, b0: float, scale: fl
     n = cfg.n_customers
 
     customer_ids = np.arange(1, n + 1)
+    # Date de la demande courante — répartie sur ~18 mois, indépendamment de customer_id
+    # (un identifiant client plus ancien ne veut pas dire une demande plus ancienne). C'est la
+    # vraie colonne temporelle : le split temporel (models.train.temporal_split) trie dessus,
+    # plus sur l'ordre de customer_id qui n'était qu'un proxy documenté comme tel.
+    now = pd.Timestamp("2025-06-30")
+    application_days_ago = rng.integers(0, 548, n)
+    application_date = [(now - pd.Timedelta(days=int(d))).strftime("%Y-%m-%d") for d in application_days_ago]
     ages = np.clip(rng.normal(38, 12, n), 18, 75).astype(int)
     genders = rng.choice(["M", "F"], size=n, p=[0.48, 0.52])
     sectors = rng.choice(SECTORS, size=n, p=[0.35, 0.25, 0.25, 0.15])
@@ -156,6 +164,7 @@ def generate_customers(cfg: DataConfig, latent: np.ndarray, b0: float, scale: fl
     df = pd.DataFrame(
         {
             "customer_id": customer_ids,
+            "application_date": application_date,
             "age": ages,
             "gender": genders,
             "sector": sectors,
@@ -181,18 +190,28 @@ def generate_customers(cfg: DataConfig, latent: np.ndarray, b0: float, scale: fl
 
 
 def generate_loans(cfg: DataConfig, customers: pd.DataFrame, latent: np.ndarray) -> pd.DataFrame:
-    """Génère l'historique des prêts (environ 2,5 prêts / client en moyenne)."""
+    """Génère l'historique des prêts (environ 2,5 prêts / client en moyenne).
+
+    Jointure point-in-time par construction : chaque prêt est daté strictement avant la date
+    de la demande courante (`application_date`) du client concerné — jamais après. C'est ce qui
+    rend le split temporel et l'agrégation d'historique (features/builder.py) réellement à l'abri
+    d'une fuite temporelle, plutôt qu'un simple tri par ordre sans vraie garantie de date.
+    """
     rng = np.random.default_rng(cfg.seed + 1)
     rows: list[dict] = []
-    now = pd.Timestamp("2025-06-30")
     n = len(customers)
 
     n_loans_per_customer = np.clip(rng.poisson(2.2, n) * (0.6 + 0.4 * (latent * 0.5 + 1.0) / 2.0), 1, 8).astype(int)
+    incomes = customers["monthly_income"].to_numpy()
+    customer_ids = customers["customer_id"].to_numpy()
+    application_dates = pd.to_datetime(customers["application_date"]).to_numpy()
 
     loan_counter = 0
-    for idx, customer_id in enumerate(customers["customer_id"].values):
+    for idx in range(n):
         quality = latent[idx]
-        income = float(customers.loc[customers["customer_id"] == customer_id, "monthly_income"].iloc[0])
+        customer_id = customer_ids[idx]
+        income = float(incomes[idx])
+        app_date = pd.Timestamp(application_dates[idx])
         k = int(n_loans_per_customer[idx])
         for _ in range(k):
             loan_counter += 1
@@ -200,7 +219,7 @@ def generate_loans(cfg: DataConfig, customers: pd.DataFrame, latent: np.ndarray)
             amount = np.clip(income * rng.lognormal(0, 0.4) * 0.6, 5_000, 15_000_000)
             duration = int(rng.choice(LOAN_DURATIONS))
             purpose = str(rng.choice(LOAN_PURPOSES))
-            start_date = now - pd.Timedelta(days=int(rng.integers(30, 1500)))
+            start_date = app_date - pd.Timedelta(days=int(rng.integers(30, 1500)))
             # Signature du comportement de paiement corrélée au facteur latent.
             badness = max(0.0, 1.0 - (quality + rng.normal(0, 0.5)))
             repayment_regularity = float(np.clip(0.95 - 0.55 * badness, 0.1, 1.0))

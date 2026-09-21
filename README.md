@@ -4,12 +4,13 @@ Plateforme de **scoring de crédit** pour l'écosystème CIF / DigiCoop-WA+ — 
 infrastructure d'intelligence financière (TELQAN Credit), selon les standards d'un cabinet
 d'expertise : reproductible, testée, instrumentée, déployable.
 
-> Le ROC-AUC de 0.94 (`cif_credit_official:1.0.1`, voir `data/model_cards/`) du prototype
+> Le ROC-AUC de 0.925 (`cif_credit_official:1.0.2`, voir `data/model_cards/`) du prototype
 > synthétique est un **résultat expérimental sur environnement synthétique**, pas un benchmark
 > CIF — et il reste structurellement optimiste : le générateur dérive toutes les features d'un
-> facteur latent unique, plus séparable qu'un vrai portefeuille de crédit. Ce dépôt contient la
-> version *engineering-grade* de ce prototype, prête à accueillir les données réelles CIF via le
-> protocole d'audit V1.1.
+> facteur latent unique, plus séparable qu'un vrai portefeuille de crédit. Split temporel fondé
+> sur la vraie date de demande (`application_date`) avec jointure d'historique point-in-time
+> stricte. Ce dépôt contient la version *engineering-grade* de ce prototype, prête à accueillir
+> les données réelles CIF via le protocole d'audit V1.1.
 
 ## Architecture (alignée sur le cahier du cabinet)
 

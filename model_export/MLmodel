@@ -18,7 +18,7 @@ flavors:
     - xgboost.sklearn.XGBClassifier
 mlflow_version: 3.16.1
 model_id: null
-model_size_bytes: 1490233
-model_uuid: 311b74c5ccea4bef8dc9a53531ae9f12
+model_size_bytes: 1496224
+model_uuid: e8d148084cf84b69961c04d974b71dc0
 prompts: null
-utc_time_created: '2026-09-18 20:22:57.767373'
+utc_time_created: '2026-09-21 09:25:34.153827'

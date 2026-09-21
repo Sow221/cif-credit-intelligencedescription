@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from config.schema import FeatureConfig
-from features.builder import build_features
+from features.builder import aggregate_loans, build_features
 from features.validate import (
     FORBIDDEN_SUBSTRINGS,
     LeakageError,
@@ -100,4 +100,45 @@ def test_build_features_generated_data_output_contract() -> None:
     ds = generate_datasets(DataConfig(n_customers=60, seed=11))
     built = build_features(ds.customers, ds.loans, ds.savings, cfg)
     assert "p_default_true" not in built.columns
-    assert len(built.columns) == n_features + 2  # + customer_id + is_default
+    # + customer_id + application_date (métadonnée de jointure point-in-time) + is_default
+    assert len(built.columns) == n_features + 3
+
+
+def test_aggregate_loans_excludes_loans_at_or_after_application_date() -> None:
+    """Fuite temporelle : un prêt daté à ou après la demande courante d'un client ne doit
+    JAMAIS entrer dans son agrégat d'historique — même si le générateur le garantit déjà
+    par construction, cette garde doit le détecter pour de vraies données CIF (sans cette
+    garantie) où un tel prêt existerait."""
+    customers = pd.DataFrame({"customer_id": [1], "application_date": ["2025-01-01"]})
+    loans = pd.DataFrame(
+        {
+            "customer_id": [1, 1, 1],
+            "loan_amount": [100_000.0, 200_000.0, 300_000.0],
+            "loan_start_date": ["2024-01-01", "2025-01-01", "2025-06-01"],  # avant / == / après
+            "repayment_regularity": [0.9, 0.9, 0.9],
+            "max_dpd": [0, 0, 0],
+            "loan_status": ["repaid", "repaid", "repaid"],
+        }
+    )
+    agg = aggregate_loans(loans, customers)
+    row = agg[agg["customer_id"] == 1].iloc[0]
+    # Seul le prêt du 2024-01-01 (strictement avant application_date) doit survivre.
+    assert row["n_loans"] == 1
+    assert row["total_loan_amount"] == 100_000.0
+
+
+def test_aggregate_loans_without_customers_is_unfiltered() -> None:
+    """Sans table customers (ou sans application_date), aggregate_loans reste permissif —
+    utilisé par exemple pour des analyses hors pipeline d'entraînement."""
+    loans = pd.DataFrame(
+        {
+            "customer_id": [1, 1],
+            "loan_amount": [100_000.0, 200_000.0],
+            "loan_start_date": ["2024-01-01", "2030-01-01"],
+            "repayment_regularity": [0.9, 0.9],
+            "max_dpd": [0, 0],
+            "loan_status": ["repaid", "repaid"],
+        }
+    )
+    agg = aggregate_loans(loans)
+    assert agg[agg["customer_id"] == 1].iloc[0]["n_loans"] == 2
