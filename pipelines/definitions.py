@@ -253,6 +253,22 @@ lending_club_job = dg.define_asset_job(
     selection=[lc_raw_available, lc_interim, lc_features, lc_benchmark],
 )
 
+# Lending Club est un jeu de données statique (pas d'API live) : un cron quotidien ne
+# produirait rien de nouveau. Mensuel se justifie par deux raisons réelles, pas décoratives :
+# (1) détecter une dérive de comportement silencieuse causée par une mise à jour de dépendance
+# (XGBoost, scikit-learn...) plutôt que de la découvrir des mois plus tard ; (2) c'est le point
+# de branchement déjà prêt pour le jour où de nouvelles cohortes de prêts (ou des données CIF
+# réelles) remplacent ce jeu statique — remplacer la source de données suffit, le reste de la
+# chaîne (ingestion → validation → benchmark → promotion via alias champion/previous) est
+# inchangé. Remplace l'ancien pipelines/continuous_training.py (supprimé, voir CHANGELOG) qui
+# promouvait vers un alias "production" jamais lu par personne et dupliquait la logique de
+# promotion au lieu de réutiliser models.promotion.promote_if_better.
+lending_club_schedule = dg.ScheduleDefinition(
+    job=lending_club_job,
+    cron_schedule="0 4 1 * *",  # 1er de chaque mois, 04:00
+    execution_timezone="Africa/Dakar",
+)
+
 defs = dg.Definitions(
     assets=[
         generate_raw_data,
@@ -266,6 +282,6 @@ defs = dg.Definitions(
         lc_benchmark,
     ],
     jobs=[single_asset_job, lending_club_job],
-    schedules=[daily_schedule],
+    schedules=[daily_schedule, lending_club_schedule],
     resources={},
 )
