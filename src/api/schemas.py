@@ -47,8 +47,13 @@ class LendingClubScoreRequest(StrictModel):
     ``lending_club_champion`` (voir ``docs/validation/lending-club-benchmark.md``).
     """
 
-    features: dict[str, float | str] = Field(
-        ..., description="18 features Lending Club (voir features.lending_club.FEATURES)"
+    features: dict[str, float | str | None] = Field(
+        ...,
+        description=(
+            "18 features Lending Club (voir features.lending_club.FEATURES). "
+            "``null`` est accepté pour une variable numérique inconnue (le modèle impute "
+            "explicitement les valeurs manquantes) — jamais ``NaN`` littéral, invalide en JSON strict."
+        ),
     )
 
 

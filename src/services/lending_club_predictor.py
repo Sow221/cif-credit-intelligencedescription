@@ -111,13 +111,14 @@ class LendingClubPredictor:
         return "REVUE_HUMAINE"
 
     def predict(
-        self, features: dict[str, float | str], *, request_id: str | None = None, actor: str | None = None
+        self, features: dict[str, float | str | None], *, request_id: str | None = None, actor: str | None = None
     ) -> LendingClubResult:
         """Calcule PD, explication et décision pour une demande ; journalise si l'audit est actif."""
         rid = request_id or str(uuid4())
         row: dict[str, list[float | str]] = {}
         for c in NUMERIC_FEATURES:
-            row[c] = [float(features[c])] if features.get(c) is not None else [np.nan]
+            value = features.get(c)
+            row[c] = [np.nan] if value is None else [float(value)]
         for c in CATEGORICAL_FEATURES:
             row[c] = [str(features.get(c, "unknown"))]
         df = pd.DataFrame(row)
