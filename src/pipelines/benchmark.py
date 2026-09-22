@@ -137,6 +137,9 @@ def write_artifacts(result: BenchmarkResult, out_dir: str | Path) -> Path:
     (out / "metrics.json").write_text(json.dumps(result.metrics, indent=2, default=float), encoding="utf-8")
 
     y = result.test[TARGET].to_numpy()
+    # Bornes explicites (pas un simple entier) : évite un bug connu de np.histogram quand des
+    # probabilités clippées s'empilent exactement sur le dernier bord de bin (numpy#10322).
+    hist_edges = np.linspace(0.0, 1.0, 51)
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.2))
     for name, p in result.test_scores.items():
         fpr, tpr, _ = roc_curve(y, p)
@@ -144,7 +147,7 @@ def write_artifacts(result: BenchmarkResult, out_dir: str | Path) -> Path:
         bins = pd.qcut(p, 10, duplicates="drop")
         cal = pd.DataFrame({"p": p, "y": y}).groupby(bins, observed=True).mean()
         axes[1].plot(cal["p"], cal["y"], marker="o", label=name)
-        axes[2].hist(p, bins=50, alpha=0.5, label=name)
+        axes[2].hist(p, bins=hist_edges, alpha=0.5, label=name)
     axes[0].plot([0, 1], [0, 1], "k--", lw=0.8)
     axes[0].set(title="ROC (test out-of-time)", xlabel="FPR", ylabel="TPR")
     axes[1].plot([0, 0.6], [0, 0.6], "k--", lw=0.8)
