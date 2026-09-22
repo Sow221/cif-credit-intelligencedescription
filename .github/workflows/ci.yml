@@ -66,7 +66,7 @@ jobs:
         run: docker build -f docker/Dockerfile.${{ matrix.service }} -t cif-${{ matrix.service }}:${{ github.sha }} .
 
       - name: Trivy scan (vulnérabilités image, rapport)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: cif-${{ matrix.service }}:${{ github.sha }}
           format: table
