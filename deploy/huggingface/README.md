@@ -1,15 +1,17 @@
 # Déploiement — CIF Credit Intelligence
 
-Système de scoring de crédit MLOps complet : feature engineering déterministe
-(25 features officielles CIF, anti-leakage), modèle XGBoost calibré, API de
-production (FastAPI + JWT), et stack de déploiement conteneurisé
-(Docker, Kubernetes, Terraform, CI/CD).
+Deux modèles servis par la même API : le **pilote CIF** (synthétique, `/v1/predict`,
+25 features) et le **champion Lending Club** (validé sur données publiques réelles,
+`/v1/lending-club/score`, 18 features, voir `docs/validation/lending-club-benchmark.md`).
+Les deux sont exportés en artefacts autonomes (`deploy/model/`, `deploy/model_lending_club/`)
+et cuits dans l'image — aucun serveur MLflow requis en production.
 
-> **Transparence méthodologique** : le modèle est entraîné sur des données
-> **synthétiques** (aucune donnée réelle CIF n'a été utilisée). L'objectif de
-> cette preuve est de démontrer la **robustesse du système MLOps** (pipeline
-> reproductible, versionné, déployable, honnête sur ses limites), et non un
-> AUC réel sur des clients.
+> **Transparence méthodologique** : le modèle CIF est entraîné sur des données
+> **synthétiques** (aucune donnée réelle CIF n'a été utilisée) — démontre la
+> robustesse du système MLOps, pas un AUC réel sur des clients. Le champion
+> Lending Club, lui, est validé sur des données réelles, mais un autre marché
+> du crédit (particuliers américains) : il valide la **méthode**, pas la
+> performance attendue sur le portefeuille CIF.
 
 ## 1. API en local
 
@@ -17,17 +19,33 @@ production (FastAPI + JWT), et stack de déploiement conteneurisé
 python -m venv .venv && .venv\Scripts\activate
 pip install -e ".[dev]"
 set MLFLOW_TRACKING_URI=sqlite:///mlruns.db
+set CIF_ENV=dev
 uvicorn api.app:create_app --factory --port 8000
 ```
 
-Token : `POST /v1/auth/token` avec `client_id=cif-agent`,
-`client_secret=change-me-in-production`.
+En mode `dev` (défaut hors production), un secret JWT aléatoire est généré à chaque
+démarrage et le client de démo `cif-agent` / `change-me-in-production` reste accepté.
+Token : `POST /v1/auth/token` avec ces identifiants.
 
 ## 2. Image Docker (locale)
 
+L'image embarque `CIF_ENV=production` : elle **refuse de démarrer** sans de vrais
+secrets (jamais les valeurs par défaut), avec un message d'erreur explicite.
+
 ```bash
 docker build -f deploy/huggingface/Dockerfile -t cif-api .
-docker run -p 8000:8000 cif-api
+docker run -p 8000:8000 \
+  -e CIF_JWT_SECRET="$(openssl rand -hex 32)" \
+  -e CIF_API_CLIENT_SECRET="$(openssl rand -hex 16)" \
+  cif-api
+```
+
+Régénérer les artefacts avant de rebuilder (ils sont commités dans `deploy/`, pas
+recalculés en CI) :
+
+```bash
+MLFLOW_TRACKING_URI=sqlite:///mlruns.db cif-export-model        # pilote CIF
+MLFLOW_TRACKING_URI=sqlite:///mlruns.db cif-export-lc-model     # champion Lending Club
 ```
 
 ## 3. CI/CD → GHCR
@@ -43,7 +61,16 @@ docker run -p 8000:8000 cif-api
 
 Créer un Space de type **Docker**, et utiliser `deploy/huggingface/space.Dockerfile`
 comme Dockerfile (3 lignes pointant vers l'image GHCR publique). HF expose
-automatiquement le port `7860`. URL publique obtenue après le build du Space.
+automatiquement le port `7860`.
+
+**Obligatoire avant le premier démarrage** : Space → *Settings* → *Variables and secrets*,
+ajouter en secrets (pas en variables publiques) :
+- `CIF_JWT_SECRET` : `openssl rand -hex 32`
+- `CIF_API_CLIENT_SECRET` : `openssl rand -hex 16`
+
+Sans ces deux secrets, le conteneur démarre puis s'arrête immédiatement (`CIF_ENV=production`
+refuse les valeurs par défaut) — comportement voulu, pas un bug. `PORT=7860` est déjà fixé par
+le `space.Dockerfile`. URL publique obtenue après le build du Space.
 
 ## 5. Kubernetes (Oracle Cloud Free Tier)
 
@@ -86,6 +113,9 @@ kubectl -n cif get pods
 
 ## Sécurité
 
-- `cif-agent` / `change-me-in-production` : **à remplacer** par des secrets
-  réels (env / secret K8s) avant toute exposition publique.
+- `CIF_ENV=production` (déjà fixé dans l'image) : l'API refuse de démarrer si
+  `CIF_JWT_SECRET` ou `CIF_API_CLIENT_SECRET` sont absents ou valent leur défaut
+  de démo. Pas de faille possible « oubliée » en prod — c'est vérifié au démarrage.
 - JWT `HS256`, TTL 1h. CORS ouvert par défaut (`*`) : restreindre en prod.
+- Un seul couple identifiant/secret client (`cif-agent`) : suffisant pour une démo,
+  pas pour plusieurs clients réels (voir roadmap : gestion multi-clients).

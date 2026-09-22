@@ -1,0 +1,50 @@
+artifact_path: /workspaces/cif-credit-intelligencedescription/mlruns/1/models/m-537e6fcf4e1c4a4f9766007d31ff8771/artifacts
+flavors:
+  python_function:
+    artifacts:
+      scoring_model:
+        path: artifacts/scoring_model.pkl
+        uri: /tmp/tmpfjsqavmx/scoring_model.pkl
+    cloudpickle_version: 3.1.2
+    code: null
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pyfunc.model
+    python_model: python_model.pkl
+    python_version: 3.14.2
+    streamable: false
+is_signature_from_type_hint: false
+mlflow_version: 3.16.1
+model_id: m-537e6fcf4e1c4a4f9766007d31ff8771
+model_size_bytes: 12309
+model_uuid: m-537e6fcf4e1c4a4f9766007d31ff8771
+prompts: null
+run_id: 884a9558aeb14b67b8139efc160fee6e
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "double", "name": "loan_amnt", "required": true}, {"type": "double",
+    "name": "installment", "required": true}, {"type": "double", "name": "emp_length",
+    "required": true}, {"type": "double", "name": "annual_inc_log", "required": true},
+    {"type": "double", "name": "dti", "required": true}, {"type": "double", "name":
+    "delinq_2yrs", "required": true}, {"type": "double", "name": "credit_history_years",
+    "required": true}, {"type": "double", "name": "fico_mean", "required": true},
+    {"type": "double", "name": "inq_last_6mths", "required": true}, {"type": "double",
+    "name": "open_acc", "required": true}, {"type": "double", "name": "pub_rec", "required":
+    true}, {"type": "double", "name": "revol_bal_log", "required": true}, {"type":
+    "double", "name": "revol_util", "required": true}, {"type": "double", "name":
+    "total_acc", "required": true}, {"type": "double", "name": "mort_acc", "required":
+    true}, {"type": "double", "name": "pub_rec_bankruptcies", "required": true}, {"type":
+    "double", "name": "loan_to_income", "required": true}, {"type": "double", "name":
+    "installment_to_income", "required": true}, {"type": "string", "name": "home_ownership",
+    "required": true}, {"type": "string", "name": "verification_status", "required":
+    true}, {"type": "string", "name": "purpose", "required": true}, {"type": "string",
+    "name": "application_type", "required": true}]'
+  outputs: '[{"type": "tensor", "tensor-spec": {"dtype": "float64", "shape": [-1]}}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-09-22 12:35:48.549065'

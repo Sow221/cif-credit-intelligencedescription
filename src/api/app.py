@@ -115,8 +115,13 @@ def create_app(
         try:
             from services.lending_club_predictor import LendingClubPredictor
 
-            app.state.lending_club_predictor = LendingClubPredictor.from_registry(audit=audit_service)
-            logger.info("serving.lending_club.loaded")
+            lc_uri = (
+                os.environ.get("CIF_LC_MODEL_URI")
+                or os.environ.get("LC_MODEL_URI")
+                or "models:/lending_club_champion@champion"
+            )
+            app.state.lending_club_predictor = LendingClubPredictor.from_registry(lc_uri, audit=audit_service)
+            logger.info("serving.lending_club.loaded", model_uri=lc_uri)
         except Exception as exc:  # pragma: no cover
             logger.warning("serving.lending_club.disabled", error=str(exc))
             app.state.lending_club_predictor = None

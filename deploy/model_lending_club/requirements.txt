@@ -1,0 +1,9 @@
+mlflow==3.16.1
+cif-credit-intelligence==0.1.0
+cloudpickle==3.1.2
+colorama==0.4.6
+numpy==1.26.4
+pandas==2.3.3
+psutil==7.2.2
+scikit-learn==1.9.1
+scipy==1.17.1

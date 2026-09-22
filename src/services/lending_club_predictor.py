@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -73,18 +74,31 @@ class LendingClubPredictor:
         default_threshold: float = 0.15,
         audit: AuditService | None = None,
     ) -> LendingClubPredictor:
-        """Charge le pyfunc depuis MLflow et lit le seuil de coût posé en tag sur la version."""
+        """Charge le pyfunc (registre MLflow *ou* dossier local exporté) et son seuil de coût.
+
+        Deux cas, selon l'URI :
+        - ``models:/nom@alias`` (stack locale avec serveur MLflow) : le seuil est lu en tag sur
+          la version, via le client du registre.
+        - un chemin local (artefact « cuit » dans une image Docker par
+          ``cli-export-lc-model``, aucun serveur MLflow requis) : le seuil est lu dans
+          ``cost_threshold.txt``, écrit à côté par cette même commande d'export.
+        """
         loaded = mlflow.pyfunc.load_model(model_uri)
         scoring_model = loaded.unwrap_python_model().model
 
-        client = mlflow.tracking.MlflowClient()
         threshold = default_threshold
-        try:
-            name, alias = model_uri.removeprefix("models:/").split("@")
-            mv = client.get_model_version_by_alias(name, alias)
-            threshold = float(mv.tags.get("cost_threshold", default_threshold))
-        except Exception:  # pragma: no cover — dégrade proprement sur un seuil par défaut documenté
-            pass
+        if model_uri.startswith("models:/"):
+            try:
+                client = mlflow.tracking.MlflowClient()
+                name, alias = model_uri.removeprefix("models:/").split("@")
+                mv = client.get_model_version_by_alias(name, alias)
+                threshold = float(mv.tags.get("cost_threshold", default_threshold))
+            except Exception:  # pragma: no cover — dégrade sur le seuil par défaut documenté
+                pass
+        else:
+            threshold_file = Path(model_uri) / "cost_threshold.txt"
+            if threshold_file.is_file():
+                threshold = float(threshold_file.read_text(encoding="utf-8").strip())
         return cls(scoring_model, model_uri, threshold, audit=audit)
 
     def decide(self, probability: float) -> str:

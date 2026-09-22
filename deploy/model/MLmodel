@@ -6,7 +6,7 @@ flavors:
     loader_module: mlflow.sklearn
     model_path: model.skops
     predict_fn: predict
-    python_version: 3.11.15
+    python_version: 3.14.2
   sklearn:
     code: null
     pickled_model: model.skops
@@ -18,7 +18,7 @@ flavors:
     - xgboost.sklearn.XGBClassifier
 mlflow_version: 3.16.1
 model_id: null
-model_size_bytes: 1490233
-model_uuid: 311b74c5ccea4bef8dc9a53531ae9f12
+model_size_bytes: 1519763
+model_uuid: e4f79fedb67a4c6888faf4a8c2fb418a
 prompts: null
-utc_time_created: '2026-09-18 20:22:57.767373'
+utc_time_created: '2026-09-22 12:53:08.809160'

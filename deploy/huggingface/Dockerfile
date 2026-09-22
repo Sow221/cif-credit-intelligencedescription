@@ -4,13 +4,16 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PORT=8000 \
-    MODEL_URI=/app/model
+    MODEL_URI=/app/model \
+    CIF_LC_MODEL_URI=/app/model_lc \
+    CIF_ENV=production
 
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY deploy/model /app/model
+COPY deploy/model_lending_club /app/model_lc
 COPY deploy/huggingface/run.py ./run.py
 
 RUN pip install --no-cache-dir .
