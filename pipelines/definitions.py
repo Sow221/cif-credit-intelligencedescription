@@ -1,11 +1,14 @@
 """Définitions Dagster — orchestration des assets du projet CIF Credit Intelligence.
 
-Assets (versionnés, lineage automatique) :
-- generate_raw_data  → génère les trois tables
-- build_features     → 25 features + target
-- train_model        → entraîne XGBoost, journalise dans MLflow, enregistre dans le registry
-- evaluate_model     → bootstrap, robustesse, fairness, ablation, GO/NO-GO
-- decide_batch       → applique le decision engine (human-in-the-loop)
+Point d'entrée unique de visibilité sur l'état des données et des modèles (interface web,
+``dagster dev``) : deux graphes d'assets, plutôt que des scripts isolés invisibles les uns
+des autres.
+
+Groupe ``synthetic`` (prototype d'infrastructure) :
+- generate_raw_data → build_features → train_model → evaluate_model → decide_batch
+
+Groupe ``lending_club`` (validation de la méthode sur données publiques réelles) :
+- lc_raw_available → lc_interim → lc_features → lc_benchmark
 
 Le passage des assets est strictement séquentiel ; chaque asset est reproductible
 (seed fixe, config Hydra versionnée).
@@ -42,7 +45,7 @@ def _mlflow_env() -> None:
 
 
 @dg.asset(group_name="data", compute_kind="python")
-def generate_raw_data(context: dg.AssetExecutionContext) -> None:
+def generate_raw_data(context) -> None:
     """Génère les données synthétiques (10k clients / ~25k prêts / 240k relevés)."""
     datasets = generate_datasets(CONF.data)
     paths = save_datasets(CONF.data, datasets)
@@ -50,7 +53,7 @@ def generate_raw_data(context: dg.AssetExecutionContext) -> None:
 
 
 @dg.asset(group_name="data", deps=["generate_raw_data"], compute_kind="python")
-def build_features(context: dg.AssetExecutionContext) -> None:
+def build_features(context) -> None:
     """Construit le jeu de 25 features + target."""
     raw_dir = Path(CONF.data.raw_dir)
     customers = pd.read_parquet(raw_dir / "customers.parquet")
@@ -64,7 +67,7 @@ def build_features(context: dg.AssetExecutionContext) -> None:
 
 
 @dg.asset(group_name="models", deps=["build_features"], compute_kind="xgboost")
-def train_model(context: dg.AssetExecutionContext) -> None:
+def train_model(context) -> None:
     """Entraîne le modèle officiel et l'enregistre dans le registry MLflow."""
     _mlflow_env()
     df = pd.read_parquet(Path(CONF.data.processed_dir) / CONF.features.output_file)
@@ -73,7 +76,7 @@ def train_model(context: dg.AssetExecutionContext) -> None:
 
 
 @dg.asset(group_name="models", deps=["train_model"], compute_kind="python")
-def evaluate_model(context: dg.AssetExecutionContext) -> None:
+def evaluate_model(context) -> None:
     """Audit : bootstrap, robustesse, fairness, ablation puis verdict GO/NO-GO."""
     df = pd.read_parquet(Path(CONF.data.processed_dir) / CONF.features.output_file)
     cols = feature_columns(CONF.features)
@@ -116,7 +119,7 @@ def evaluate_model(context: dg.AssetExecutionContext) -> None:
 
 
 @dg.asset(group_name="decisions", deps=["train_model"], compute_kind="python")
-def decide_batch(context: dg.AssetExecutionContext) -> None:
+def decide_batch(context) -> None:
     """Applique le decision engine au batch complet et trace chaque décision."""
     out = Path("data/artifacts") / "decisions.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +128,7 @@ def decide_batch(context: dg.AssetExecutionContext) -> None:
 
     df = pd.read_parquet(Path(CONF.data.processed_dir) / CONF.features.output_file)
     _mlflow_env()
-    model = mlflow.sklearn.load_model("models:/cif_credit_official/latest")
+    model = mlflow.sklearn.load_model("models:/cif_credit_official@champion")
     cols = feature_columns(CONF.features)
     probs = model.predict_proba(df[cols].astype(float))[:, 1]
 
@@ -158,6 +161,94 @@ daily_schedule = dg.ScheduleDefinition(
     execution_timezone="Africa/Dakar",
 )
 
+
+# --- Lending Club : validation de la méthode sur données publiques réelles ---
+# Mêmes fonctions que les CLI `cif-ingest-lc` / `cif-benchmark` (aucune logique dupliquée) :
+# Dagster n'est ici qu'une couche de visibilité et d'orchestration au-dessus du même code.
+
+
+@dg.asset(group_name="lending_club", compute_kind="python")
+def lc_raw_available(context) -> dg.MaterializeResult:
+    """Vérifie la présence du fichier brut (téléchargé manuellement, jamais généré : voir `make data-download`)."""
+    from data.lending_club import find_raw_file
+
+    path = find_raw_file(CONF.lending_club.raw_dir)
+    size_mb = path.stat().st_size / 1e6
+    context.log.info("lending_club.raw.found", extra={"path": str(path)})
+    return dg.MaterializeResult(metadata={"path": str(path), "size_mb": round(size_mb, 1)})
+
+
+@dg.asset(group_name="lending_club", deps=["lc_raw_available"], compute_kind="pandera")
+def lc_interim(context) -> dg.MaterializeResult:
+    """Nettoie et valide (contrat Pandera bloquant) : raw → interim."""
+    from data.lending_club import DATE_COL, TARGET, build_interim
+
+    path = build_interim(CONF.lending_club)
+    df = pd.read_parquet(path)
+    context.log.info("lending_club.interim.done", extra={"rows": len(df)})
+    return dg.MaterializeResult(
+        metadata={
+            "rows": len(df),
+            "default_rate": round(float(df[TARGET].mean()), 4),
+            "period": f"{df[DATE_COL].min().date()} → {df[DATE_COL].max().date()}",
+            "path": str(path),
+        }
+    )
+
+
+@dg.asset(group_name="lending_club", deps=["lc_interim"], compute_kind="python")
+def lc_features(context) -> dg.MaterializeResult:
+    """Features point-in-time (sans fuite d'après-octroi) : interim → processed."""
+    from features.lending_club import build_features as build_lc_features
+
+    interim = pd.read_parquet(CONF.lending_club.interim_path)
+    features = build_lc_features(interim)
+    out = Path(CONF.lending_club.processed_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    features.to_parquet(out, index=False)
+    context.log.info("lending_club.features.done", extra={"rows": len(features)})
+    return dg.MaterializeResult(metadata={"rows": len(features), "n_features": len(features.columns) - 3})
+
+
+@dg.asset(group_name="lending_club", deps=["lc_features"], compute_kind="xgboost")
+def lc_benchmark(context) -> dg.MaterializeResult:
+    """Baseline logistique vs XGBoost contraint, protocole out-of-time (ADR 0001-0003)."""
+    from models.lending_club_registry import register_champion
+    from pipelines.benchmark import run_benchmark, write_artifacts
+
+    features = pd.read_parquet(CONF.lending_club.processed_path)
+    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", CONF.model.mlflow_tracking_uri))
+    mlflow.set_experiment("lending_club_benchmark")
+    with mlflow.start_run(run_name="dagster-benchmark"):
+        result = run_benchmark(features, CONF.lending_club)
+        out = write_artifacts(result, "reports/lending_club")
+        for name, metrics in result.metrics["test_metrics"].items():
+            mlflow.log_metrics({f"test_{name}_{k}": v for k, v in metrics.items()})
+        mlflow.log_artifacts(str(out))
+
+        champ_metrics = result.metrics["test_metrics"][result.champion.name]
+        mlflow.log_metrics({"roc_auc": champ_metrics["roc_auc"], "ece": champ_metrics["ece"]})
+        version = register_champion(result.champion, result.test)
+        context.log.info("lending_club.registry.done", extra={"version": version})
+    m = result.metrics["test_metrics"]
+    context.log.info("lending_club.benchmark.done", extra={"champion": result.metrics["champion"]})
+    return dg.MaterializeResult(
+        metadata={
+            "champion": result.metrics["champion"],
+            "reason": result.metrics["champion_reason"],
+            "roc_auc_logistic": round(m["logistic"]["roc_auc"], 4),
+            "roc_auc_xgboost": round(m["xgboost"]["roc_auc"], 4),
+            "registered_version": version,
+            "report": dg.MetadataValue.path(str(out / "metrics.json")),
+        }
+    )
+
+
+lending_club_job = dg.define_asset_job(
+    name="lending_club_pipeline",
+    selection=[lc_raw_available, lc_interim, lc_features, lc_benchmark],
+)
+
 defs = dg.Definitions(
     assets=[
         generate_raw_data,
@@ -165,8 +256,12 @@ defs = dg.Definitions(
         train_model,
         evaluate_model,
         decide_batch,
+        lc_raw_available,
+        lc_interim,
+        lc_features,
+        lc_benchmark,
     ],
-    jobs=[single_asset_job],
+    jobs=[single_asset_job, lending_club_job],
     schedules=[daily_schedule],
     resources={},
 )

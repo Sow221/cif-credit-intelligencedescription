@@ -55,3 +55,9 @@ terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/crash.log
+
+# Local dev servers (this session)
+.dagster_home/
+.venv/
+mlruns.db
+mlartifacts/
