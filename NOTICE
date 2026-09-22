@@ -1,0 +1,16 @@
+CIF Credit Intelligence
+Copyright 2026 Moussa Sow
+
+Licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+This product depends on, and is not affiliated with or endorsed by, the following third-party
+open source projects (see their own repositories for full license texts and copyright notices):
+
+- MLflow (Apache License 2.0) — https://github.com/mlflow/mlflow
+- Dagster (Apache License 2.0) — https://github.com/dagster-io/dagster
+- Evidently (Apache License 2.0) — https://github.com/evidentlyai/evidently
+- XGBoost (Apache License 2.0) — https://github.com/dmlc/xgboost
+- scikit-learn (BSD 3-Clause) — https://github.com/scikit-learn/scikit-learn
+- FastAPI (MIT License) — https://github.com/fastapi/fastapi
+- Pandas (BSD 3-Clause) — https://github.com/pandas-dev/pandas

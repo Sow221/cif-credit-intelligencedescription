@@ -36,8 +36,11 @@ déployé et vérifié de bout en bout — pas seulement testé en local.
   MLflow, API, Prometheus/Grafana, Dagster).
 - **Verrouillage des dépendances** (`requirements-serving.lock.txt`, `requirements-dev.lock.txt`,
   `make lock`) : versions exactes, résolues pour Python 3.11 (celui de l'image de production).
-- `CONTRIBUTING.md`, ce fichier, et une licence cohérente (MIT partout, `pyproject.toml` et
-  `LICENSE` étaient contradictoires).
+- `CONTRIBUTING.md`, ce fichier, et une licence cohérente (`pyproject.toml` et `LICENSE`
+  étaient contradictoires — MIT dans le fichier, "Proprietary" dans les métadonnées).
+  **Licence choisie : Apache 2.0**, pas MIT — même permissivité, mais avec une clause de
+  brevet explicite (protège auteur et utilisateurs) et cohérente avec l'écosystème dont ce
+  projet dépend (MLflow, Dagster, Evidently sont tous les trois sous Apache 2.0).
 
 ### Modifié
 - Séparation des dépendances de service (`dependencies`) et d'entraînement/orchestration

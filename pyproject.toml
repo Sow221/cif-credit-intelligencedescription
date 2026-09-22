@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "CIF Credit Intelligence — plateforme de scoring de crédit pour l'écosystème CIF/DigiCoop-WA+"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "TELQAN / CIF Credit Intelligence" }]
 # Dépendances du chemin de serving (API + entraînement plain + registre) : c'est exactement
 # ce qui est installé dans l'image de production. Volontairement minimal — dagster, matplotlib,
