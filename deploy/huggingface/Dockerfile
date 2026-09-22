@@ -10,13 +10,17 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md requirements-serving.lock.txt ./
 COPY src ./src
 COPY deploy/model /app/model
 COPY deploy/model_lending_club /app/model_lc
 COPY deploy/huggingface/run.py ./run.py
 
-RUN pip install --no-cache-dir .
+# Versions exactes verrouillées (uv pip compile --python-version 3.11), pas une résolution
+# libre à chaque build : c'est ce qui a causé un vrai incident (pandas résolu en 3.0.x ici,
+# alors que le modèle exporté avait été sérialisé avec 2.3.3 — voir docs/validation/).
+RUN pip install --no-cache-dir -r requirements-serving.lock.txt && \
+    pip install --no-cache-dir --no-deps .
 
 EXPOSE 8000
 

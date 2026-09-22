@@ -7,11 +7,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md requirements-serving.lock.txt ./
 COPY src ./src
 
+# Versions exactes verrouillées, pas une résolution libre à chaque build (voir deploy/huggingface/Dockerfile).
 RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-cache-dir .
+    python -m pip install --no-cache-dir -r requirements-serving.lock.txt && \
+    python -m pip install --no-cache-dir --no-deps .
 
 # --- Runtime minimale, utilisateur non-privilégié ---
 FROM python:3.11-slim

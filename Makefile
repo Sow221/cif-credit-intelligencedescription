@@ -52,3 +52,15 @@ lint:
 
 test:
 	pytest -q tests
+
+# --- Verrouillage des dépendances ---
+# À relancer après toute modification de pyproject.toml. --python-version 3.11 est
+# intentionnel : c'est la version de l'image de production (deploy/huggingface/Dockerfile),
+# pas forcément celle de votre environnement local — un vrai incident de version divergente
+# (pandas résolu différemment selon l'environnement) a motivé ce verrouillage explicite.
+.PHONY: lock
+lock:
+	pip install -q uv
+	uv pip compile pyproject.toml --python-version 3.11 -o requirements-serving.lock.txt
+	uv pip compile pyproject.toml --extra dev --extra data --extra repro --extra quality \
+		--python-version 3.11 -o requirements-dev.lock.txt
