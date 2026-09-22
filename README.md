@@ -141,7 +141,7 @@ Phase 3 — Protocole données réelles CIF (shadow mode).
 | 2 — API | `/v1/predict`, `/v1/auth/token`, JWT HS256, rate limiting, `X-Request-ID`, `extra="forbid"` | ✅ `030ece9` |
 | 3 — Base de données | `migrations/` (Alembic), `src/services/audit_service.py`, `src/services/predictor.py`, tables PostgreSQL 16 (customers, predictions, audit_log, model_versions) | ✅ |
 | 4 — MLflow + Monitoring | `src/models/train.py`, `src/models/model_card.py`, `src/monitoring/drift_report.py` | ✅ `117e8a6` |
-| 5 — Kubernetes + Terraform | `terraform/main.tf`, `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/ingress.yaml`, `docker/Dockerfile` | ✅ `637e402` |
+| 5 — Kubernetes + Terraform | `terraform/main.tf`, `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/ingress.yaml`, `docker/Dockerfile.api` | ✅ `637e402` |
 | 6 — CI/CD Canary | `.github/workflows/deploy.yml`, `scripts/deploy.sh` | ✅ `61c34e7` — rollback K8s dédié restant à écrire |
 
 Base de données : le schéma (customers, predictions, audit_log, model_versions) est porté par

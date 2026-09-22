@@ -13,14 +13,18 @@ COPY src ./src
 RUN python -m pip install --upgrade pip && \
     python -m pip install --no-cache-dir .
 
-# --- Runtime minimale ---
+# --- Runtime minimale, utilisateur non-privilégié ---
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    MLFLOW_TRACKING_URI=http://mlflow:5000
+    MLFLOW_TRACKING_URI=http://mlflow:5000 \
+    PYTHONPATH=/app/src
 
 WORKDIR /app
+
+RUN groupadd -r cif && useradd -r -g cif cif && chown -R cif:cif /app
+
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/src ./src
@@ -29,7 +33,7 @@ COPY --from=builder /app/src ./src
 # entry points dans /usr/local/bin) et ses dépendances (site-packages) — les deux sont
 # copiés ci-dessus. Un second `pip install .` échouerait de toute façon : pyproject.toml
 # n'est jamais copié dans ce stage.
-ENV PYTHONPATH=/app/src
+USER cif
 
 EXPOSE 8000
 
