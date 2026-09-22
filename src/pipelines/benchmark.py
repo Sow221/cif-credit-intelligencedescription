@@ -28,6 +28,7 @@ from config.schema import LendingClubConfig
 from data.lending_club import DATE_COL, TARGET, temporal_partition
 from evaluation.bootstrap import bootstrap_metrics, paired_auc_difference
 from evaluation.metrics import compute_all_metrics
+from evaluation.thresholds import optimal_cost_threshold
 from models.scoring import ScoringModel, fit_logistic, fit_xgboost
 from models.tuning import tune_xgboost
 from utils.logging import get_logger
@@ -107,6 +108,13 @@ def run_benchmark(
     champion, challenger = (xgb, logistic) if xgb_wins else (logistic, xgb)
     logger.info("benchmark.champion", champion=champion.name, auc_diff=diff)
 
+    # Seuil de décision par coût (Model ≠ Policy, cf. ADR CIF §64) : calculé une seule fois sur
+    # le test, à partir du champion — jamais posé "à la main".
+    champion_score = scores[champion.name]
+    cost_threshold, expected_cost = optimal_cost_threshold(
+        y_te, champion_score, cfg.cost_false_negative, cfg.cost_false_positive
+    )
+
     metrics: dict[str, Any] = {
         "protocol": {
             "partition": [_split_summary("train", train), _split_summary("valid", valid), _split_summary("test", test)],
@@ -126,6 +134,13 @@ def run_benchmark(
             else "Écart d'AUC non démontré (IC95% inclut 0) : baseline logistique retenue par parcimonie"
         ),
         "quarterly_test_auc": {name: _quarterly_auc(test, p) for name, p in scores.items()},
+        "decision": {
+            "cost_threshold": round(cost_threshold, 4),
+            "expected_cost_per_case": round(expected_cost, 2),
+            "cost_false_negative": cfg.cost_false_negative,
+            "cost_false_positive": cfg.cost_false_positive,
+            "note": "Coûts illustratifs (dollars arbitraires), pas une calibration métier réelle.",
+        },
     }
     return BenchmarkResult(metrics, champion, challenger, test, scores)
 

@@ -156,3 +156,34 @@ def test_benchmark_end_to_end(features: pd.DataFrame, tmp_path) -> None:
     assert parts["train"]["to"] < parts["valid"]["from"] <= parts["valid"]["to"] < parts["test"]["from"]
     out = write_artifacts(result, tmp_path)
     assert (out / "metrics.json").exists() and (out / "benchmark.png").exists()
+
+
+def test_scoring_model_explain_logistic_sums_to_margin(features: pd.DataFrame) -> None:
+    tr, _, _ = temporal_partition(features, CFG)
+    model = fit_logistic(tr, tr[TARGET].to_numpy())
+    sample = tr.head(30)
+    contrib = model.explain(sample)
+    margin = contrib.sum(axis=1).to_numpy()
+    raw = 1 / (1 + np.exp(-margin))
+    assert raw == pytest.approx(model.raw_proba(sample), abs=1e-6)
+    assert "mort_acc" in contrib.columns  # indicatrice de valeur manquante réagrégée
+
+
+def test_lending_club_predictor_decides_around_threshold(features: pd.DataFrame) -> None:
+    from services.lending_club_predictor import LendingClubPredictor
+
+    tr, _, _ = temporal_partition(features, CFG)
+    model = fit_logistic(tr, tr[TARGET].to_numpy()).calibrate(tr.head(500), tr[TARGET].head(500).to_numpy())
+    predictor = LendingClubPredictor(model, "test:/lending_club_champion", threshold=0.15, review_margin=0.03)
+
+    base = tr[list(FEATURES)].iloc[0].to_dict()
+    approve = predictor.predict({**base, "dti": 1.0, "fico_mean": 820.0, "annual_inc_log": 13.0})
+    refuse = predictor.predict({**base, "dti": 60.0, "fico_mean": 620.0, "annual_inc_log": 9.0})
+
+    assert approve.probability < refuse.probability
+    assert refuse.decision in {"REFUS", "REVUE_HUMAINE"}
+    assert 0.0 <= approve.confidence <= 1.0
+    assert set(approve.factors) <= set(FEATURES)
+    assert predictor.decide(0.0) == "APPROBATION"
+    assert predictor.decide(1.0) == "REFUS"
+    assert predictor.decide(predictor.threshold) == "REVUE_HUMAINE"

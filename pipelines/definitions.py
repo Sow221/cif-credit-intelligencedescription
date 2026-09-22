@@ -228,7 +228,11 @@ def lc_benchmark(context) -> dg.MaterializeResult:
 
         champ_metrics = result.metrics["test_metrics"][result.champion.name]
         mlflow.log_metrics({"roc_auc": champ_metrics["roc_auc"], "ece": champ_metrics["ece"]})
-        version = register_champion(result.champion, result.test)
+        version = register_champion(
+            result.champion,
+            result.test,
+            tags={"cost_threshold": str(result.metrics["decision"]["cost_threshold"])},
+        )
         context.log.info("lending_club.registry.done", extra={"version": version})
     m = result.metrics["test_metrics"]
     context.log.info("lending_club.benchmark.done", extra={"champion": result.metrics["champion"]})

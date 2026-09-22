@@ -77,20 +77,44 @@ class ScoringModel:
     def explain(self, df: pd.DataFrame) -> pd.DataFrame:
         """Contributions (log-odds, avant calibration) par feature d'origine ; colonne ``bias`` en plus.
 
-        Positif = augmente le risque de défaut. Les colonnes one-hot sont réagrégées sur leur
-        variable source (ex. ``purpose_*`` → ``purpose``).
+        Positif = augmente le risque de défaut. Les colonnes dérivées (indicatrices de valeur
+        manquante, one-hot des catégorielles) sont réagrégées sur leur variable source
+        (ex. ``purpose_*`` → ``purpose``, ``missingindicator_mort_acc`` → ``mort_acc``).
+        Exact pour les deux modèles supportés : somme des contributions + biais = la sortie
+        brute du modèle (avant calibration), vérifié par ``test_explanations_sum_to_model_margin``.
         """
-        if not isinstance(self.estimator, XGBClassifier):
-            raise NotImplementedError("explain() n'est défini que pour le modèle XGBoost")
         names = list(self.preprocessor.get_feature_names_out())
         matrix = self.preprocessor.transform(df[list(FEATURES)])
-        contribs = self.estimator.get_booster().predict(DMatrix(matrix, feature_names=names), pred_contribs=True)
-        frame = pd.DataFrame(contribs, columns=[*names, "bias"], index=df.index)
-        grouped: dict[str, pd.Series] = {}
-        for col in frame.columns:
+
+        if isinstance(self.estimator, XGBClassifier):
+            contribs = self.estimator.get_booster().predict(DMatrix(matrix, feature_names=names), pred_contribs=True)
+            frame = pd.DataFrame(contribs, columns=[*names, "bias"], index=df.index)
+        elif isinstance(self.estimator, LogisticRegression):
+            # Linéaire et exact : contribution_i = coef_i * valeur_i (espace prétraité), le
+            # score brut est leur somme + intercept — pas d'approximation, contrairement à un
+            # explicateur générique (SHAP/LIME).
+            coef = self.estimator.coef_[0]
+            contrib_matrix = np.asarray(matrix, dtype=float) * coef
+            frame = pd.DataFrame(contrib_matrix, columns=names, index=df.index)
+            frame["bias"] = float(self.estimator.intercept_[0])
+        else:
+            raise NotImplementedError(f"explain() non défini pour {type(self.estimator).__name__}")
+
+        return _group_by_source_feature(frame)
+
+
+def _group_by_source_feature(frame: pd.DataFrame) -> pd.DataFrame:
+    """Réagrège les colonnes dérivées (one-hot, indicatrices manquantes) sur leur feature d'origine."""
+    grouped: dict[str, pd.Series | float] = {}
+    for col in frame.columns:
+        if col == "bias":
+            source = "bias"
+        elif col.startswith("missingindicator_"):
+            source = col.removeprefix("missingindicator_")
+        else:
             source = next((c for c in CATEGORICAL_FEATURES if col.startswith(f"{c}_")), col)
-            grouped[source] = grouped.get(source, 0.0) + frame[col]
-        return pd.DataFrame(grouped)
+        grouped[source] = grouped.get(source, 0.0) + frame[col]
+    return pd.DataFrame(grouped)
 
 
 def fit_logistic(train: pd.DataFrame, y: np.ndarray, c: float = 1.0) -> ScoringModel:

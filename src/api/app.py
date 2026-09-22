@@ -110,6 +110,17 @@ def create_app(
             audit=audit_service,
         )
 
+        # Champion Lending Club (démonstration méthodologique, voir docs/validation/) —
+        # optionnel : l'API CIF reste fonctionnelle même si ce modèle n'est pas enregistré.
+        try:
+            from services.lending_club_predictor import LendingClubPredictor
+
+            app.state.lending_club_predictor = LendingClubPredictor.from_registry(audit=audit_service)
+            logger.info("serving.lending_club.loaded")
+        except Exception as exc:  # pragma: no cover
+            logger.warning("serving.lending_club.disabled", error=str(exc))
+            app.state.lending_club_predictor = None
+
         # Monitoring de drift temps réel (Evidently) — désactivé proprement si la
         # baseline ne peut être construite (ex : dépendance manquante).
         cols = feature_columns(FeatureConfig())

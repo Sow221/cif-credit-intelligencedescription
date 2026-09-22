@@ -48,6 +48,7 @@ def register_champion(
     *,
     model_name: str = DEFAULT_MODEL_NAME,
     gates: PromotionGates | None = None,
+    tags: dict[str, str] | None = None,
 ) -> str:
     """Journalise le champion en pyfunc, l'enregistre, puis applique la porte de promotion.
 
@@ -60,6 +61,8 @@ def register_champion(
         sample: quelques lignes de features (pour la signature MLflow, entrée/sortie typées).
         model_name: nom du modèle dans le registre (distinct de ``cif_credit_official``).
         gates: portes de qualité de promotion (défaut : ``PromotionGates()``).
+        tags: tags additionnels posés sur la version (ex. ``cost_threshold`` — évite à l'API de
+            recharger le jeu de test pour connaître le seuil de décision au démarrage).
 
     Returns:
         La version enregistrée (peut ne pas être promue championne si les portes refusent).
@@ -82,6 +85,8 @@ def register_champion(
     version = str(info.registered_model_version)
 
     client = mlflow.tracking.MlflowClient()
+    for key, value in (tags or {}).items():
+        client.set_model_version_tag(model_name, version, key, value)
     decision = promote_if_better(client, model_name, version, gates or PromotionGates())
     logger.info(
         "models.lending_club.register",

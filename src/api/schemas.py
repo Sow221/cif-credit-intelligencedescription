@@ -40,6 +40,33 @@ class ScoreResponse(StrictModel):
     policy_hit: str = Field(..., description="Règle de policy appliquée")
 
 
+class LendingClubScoreRequest(StrictModel):
+    """Requête de scoring — démonstration du champion validé sur données publiques réelles.
+
+    Distinct de ``ScoreRequest`` (pilote CIF synthétique) : schéma et policy propres au modèle
+    ``lending_club_champion`` (voir ``docs/validation/lending-club-benchmark.md``).
+    """
+
+    features: dict[str, float | str] = Field(
+        ..., description="18 features Lending Club (voir features.lending_club.FEATURES)"
+    )
+
+
+class LendingClubScoreResponse(StrictModel):
+    """Réponse du scoring Lending Club — PD, décision par coût, explications par variable."""
+
+    model_version: str = Field(..., description="URI/alias MLflow du modèle servi")
+    probability: float = Field(..., ge=0.0, le=1.0, description="Probabilité estimée de défaut")
+    decision: Literal["APPROBATION", "REVUE_HUMAINE", "REFUS"] = Field(
+        ..., description="Décision autour du seuil de coût (marge = revue humaine)"
+    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Distance normalisée au seuil")
+    threshold: float = Field(..., description="Seuil de PD utilisé (optimal par coût, voir ADR)")
+    factors: dict[str, float] = Field(
+        default_factory=dict, description="Contribution de chaque variable au score (log-odds, exact)"
+    )
+
+
 class HealthResponse(StrictModel):
     """État de santé du service."""
 

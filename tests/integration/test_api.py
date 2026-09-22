@@ -154,3 +154,79 @@ def test_model_uri_read_from_env(monkeypatch):
     monkeypatch.setenv("MODEL_URI", "/app/model")
     app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
     assert app.state.model_version == "/app/model"
+
+
+def test_lending_club_score_returns_503_when_model_not_loaded():
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
+    with TestClient(app) as client:
+        app.state.lending_club_predictor = None
+        r = client.post("/v1/lending-club/score", json={"features": {}})
+    assert r.status_code == 503
+
+
+def test_lending_club_score_end_to_end_with_stub_champion():
+    import numpy as np
+    import pandas as pd
+
+    from data.lending_club import temporal_partition
+    from features.lending_club import FEATURES
+    from models.scoring import fit_logistic
+    from services.lending_club_predictor import LendingClubPredictor
+
+    rng = np.random.default_rng(0)
+    from config.schema import LendingClubConfig
+
+    cfg = LendingClubConfig()
+    n = 400
+    df = pd.DataFrame(
+        {
+            "loan_amnt": rng.uniform(2000, 30000, n),
+            "installment": rng.uniform(50, 900, n),
+            "emp_length": rng.uniform(0, 10, n),
+            "annual_inc_log": rng.normal(11, 0.5, n),
+            "dti": rng.uniform(0, 40, n),
+            "delinq_2yrs": rng.poisson(0.2, n).astype(float),
+            "credit_history_years": rng.uniform(1, 30, n),
+            "fico_mean": rng.normal(700, 30, n),
+            "inq_last_6mths": rng.poisson(0.5, n).astype(float),
+            "open_acc": rng.integers(2, 20, n).astype(float),
+            "pub_rec": rng.poisson(0.1, n).astype(float),
+            "revol_bal_log": rng.normal(8, 1, n),
+            "revol_util": rng.uniform(0, 100, n),
+            "total_acc": rng.integers(5, 40, n).astype(float),
+            "mort_acc": rng.poisson(1, n).astype(float),
+            "pub_rec_bankruptcies": rng.poisson(0.05, n).astype(float),
+            "loan_to_income": rng.uniform(0.05, 0.8, n),
+            "installment_to_income": rng.uniform(0.01, 0.3, n),
+            "home_ownership": rng.choice(["RENT", "MORTGAGE", "OWN"], n),
+            "verification_status": rng.choice(["Verified", "Not Verified"], n),
+            "purpose": rng.choice(["debt_consolidation", "credit_card", "car"], n),
+            "application_type": "Individual",
+            "issue_d": pd.date_range("2012-01-01", periods=n, freq="7D"),
+            "is_default": (rng.random(n) < 0.15).astype(int),
+        }
+    )
+    train, _, _ = temporal_partition(df, cfg, date_col="issue_d")
+    model = fit_logistic(train, train["is_default"].to_numpy()).calibrate(
+        train.head(50), train["is_default"].head(50).to_numpy()
+    )
+    stub_predictor = LendingClubPredictor(model, "test:/lending_club_champion", threshold=0.15)
+
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
+    with TestClient(app) as client:
+        app.state.lending_club_predictor = stub_predictor
+        payload = {"features": train[list(FEATURES)].iloc[0].to_dict()}
+        r = client.post("/v1/lending-club/score", json=payload)
+    assert r.status_code == 200
+    body = r.json()
+    assert 0.0 <= body["probability"] <= 1.0
+    assert body["decision"] in {"APPROBATION", "REVUE_HUMAINE", "REFUS"}
+    assert body["model_version"] == "test:/lending_club_champion"
+    assert set(body["factors"]) <= set(FEATURES)
+
+
+def test_lending_club_score_rejects_missing_features():
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
+    with TestClient(app) as client:
+        r = client.post("/v1/lending-club/score", json={"features": {"loan_amnt": 1000.0}})
+    assert r.status_code in {422, 503}

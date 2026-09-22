@@ -42,6 +42,10 @@ def main(trials: int | None, n_bootstrap: int, out_dir: str, tracking_uri: str |
             # Clés brutes (roc_auc, ece) lues par la porte de promotion — celles du champion.
             champ_metrics = result.metrics["test_metrics"][result.champion.name]
             mlflow.log_metrics({"roc_auc": champ_metrics["roc_auc"], "ece": champ_metrics["ece"]})
-            version = register_champion(result.champion, result.test)
+            version = register_champion(
+                result.champion,
+                result.test,
+                tags={"cost_threshold": str(result.metrics["decision"]["cost_threshold"])},
+            )
             logger.info("cli.benchmark.registered", version=version)
     logger.info("cli.benchmark.done", champion=result.metrics["champion"], out=str(Path(out_dir)))

@@ -15,11 +15,21 @@ from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from api.middleware import RateLimiter
-from api.schemas import HealthResponse, ScoreRequest, ScoreResponse, TokenRequest, TokenResponse
+from api.schemas import (
+    HealthResponse,
+    LendingClubScoreRequest,
+    LendingClubScoreResponse,
+    ScoreRequest,
+    ScoreResponse,
+    TokenRequest,
+    TokenResponse,
+)
 from api.security import check_credentials, create_access_token, verify_token
+from features.lending_club import FEATURES as LC_FEATURES
 from features.validate import FORBIDDEN_SUBSTRINGS
 from monitoring.metrics import record_score
 from services.audit_service import AuditEvent, AuditService
+from services.lending_club_predictor import LendingClubPredictor
 from services.predictor import Predictor
 from utils.logging import get_logger
 
@@ -163,3 +173,40 @@ async def _score_handlers(payload: ScoreRequest, request: Request, client: str) 
     )
 
     return ScoreResponse(**result.to_dict())
+
+
+@router_v1.post(
+    "/lending-club/score",
+    response_model=LendingClubScoreResponse,
+    tags=["scoring-validation"],
+    summary="Démonstration du champion validé sur données publiques réelles (pas le pilote CIF)",
+)
+async def lending_club_score(
+    payload: LendingClubScoreRequest,
+    request: Request,
+    client: str = Depends(_client_identity),
+) -> LendingClubScoreResponse:
+    """Scoring via le modèle ``lending_club_champion`` (voir docs/validation/lending-club-benchmark.md).
+
+    Endpoint de démonstration méthodologique, distinct de ``/v1/predict`` (pilote CIF synthétique) :
+    schéma de features et policy différents, jamais à confondre dans une même réponse.
+    """
+    _enforce_rate_limit(request, client)
+    lc_predictor: LendingClubPredictor | None = getattr(request.app.state, "lending_club_predictor", None)
+    if lc_predictor is None:
+        raise HTTPException(status_code=503, detail="Modèle lending_club_champion non chargé")
+
+    provided = set(payload.features)
+    missing = set(LC_FEATURES) - provided
+    if missing:
+        raise HTTPException(status_code=422, detail=f"Features manquantes : {sorted(missing)}")
+
+    request_id = request.headers.get("X-Request-ID", None)
+    result = lc_predictor.predict(payload.features, request_id=request_id, actor=client)
+    logger.info(
+        "api.lending_club_score.done",
+        decision=result.decision,
+        probability=round(result.probability, 6),
+        client=client,
+    )
+    return LendingClubScoreResponse(**result.to_dict())

@@ -171,6 +171,12 @@ class LendingClubConfig:
     tuning_trials: int = 30
     tuning_max_rows: int = 200_000
     seed: int = 42
+    # Coûts économiques (dollars, illustratifs — même convention que decision.cost_* pour le
+    # pilote CIF : "unités monétaires arbitraires", pas une calibration métier réelle). Le défaut
+    # non détecté coûte l'ordre de grandeur du principal moyen (~12 500 $, voir rapport de
+    # validation) ; le refus d'un bon dossier coûte la marge nette perdue, estimée à ~15 %.
+    cost_false_negative: float = 3_000.0
+    cost_false_positive: float = 450.0
 
 
 @dataclass
