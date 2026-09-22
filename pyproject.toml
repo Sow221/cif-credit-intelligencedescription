@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "CIF Credit Intelligence — plateforme de scoring de crédit pour l'écosystème CIF/DigiCoop-WA+"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 authors = [{ name = "TELQAN / CIF Credit Intelligence" }]
 dependencies = [
     "numpy>=1.26,<2",

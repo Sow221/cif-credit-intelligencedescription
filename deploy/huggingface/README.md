@@ -1,5 +1,13 @@
 # Déploiement — CIF Credit Intelligence
 
+> **En production maintenant** : https://cif-credit-intelligence.onrender.com/docs (Render,
+> instance gratuite unique — voir « API en production » dans le README racine pour le chemin de
+> montée en charge). Ce dossier s'appelle `huggingface/` pour des raisons historiques : Hugging
+> Face Spaces a retiré son palier Docker gratuit en 2026 (abonnement payant requis pour créer un
+> Space Docker ou Gradio), donc ce chemin n'est plus utilisé. L'image et le `Dockerfile`
+> ci-dessous restent corrects et portables — c'est exactement cette image qui tourne sur Render
+> aujourd'hui, et elle fonctionnerait identiquement sur Hugging Face si leur politique change.
+
 Deux modèles servis par la même API : le **pilote CIF** (synthétique, `/v1/predict`,
 25 features) et le **champion Lending Club** (validé sur données publiques réelles,
 `/v1/lending-club/score`, 18 features, voir `docs/validation/lending-club-benchmark.md`).
@@ -57,54 +65,55 @@ MLFLOW_TRACKING_URI=sqlite:///mlruns.db cif-export-lc-model     # champion Lendi
 **À faire une fois** : dans GitHub → Packages → rendre le package `api`
 **public** (sinon les runtimes externes ne peuvent pas tirer l'image).
 
-## 4. Hugging Face Space (demo publique)
+## 4. Service Docker public (production actuelle : Render)
 
-Créer un Space de type **Docker**, et utiliser `deploy/huggingface/space.Dockerfile`
-comme Dockerfile (3 lignes pointant vers l'image GHCR publique). HF expose
-automatiquement le port `7860`.
+N'importe quelle plateforme qui sait tirer une image publique depuis un registre (GHCR) et lui
+injecter des variables d'environnement convient — l'image ne dépend d'aucune spécificité de
+plateforme. En production aujourd'hui : **Render**, service Web créé directement depuis
+`ghcr.io/sow221/cif-credit-intelligence/api:latest` (pas de build, pas de dépôt Git connecté).
 
-**Obligatoire avant le premier démarrage** : Space → *Settings* → *Variables and secrets*,
-ajouter en secrets (pas en variables publiques) :
+**Obligatoire avant le premier démarrage**, quelle que soit la plateforme — définir en secrets
+(jamais en clair, jamais commités) :
 - `CIF_JWT_SECRET` : `openssl rand -hex 32`
 - `CIF_API_CLIENT_SECRET` : `openssl rand -hex 16`
+- `CIF_ENV` : `production`
 
-Sans ces deux secrets, le conteneur démarre puis s'arrête immédiatement (`CIF_ENV=production`
-refuse les valeurs par défaut) — comportement voulu, pas un bug. `PORT=7860` est déjà fixé par
-le `space.Dockerfile`. URL publique obtenue après le build du Space.
+Sans les deux premiers, le conteneur démarre puis s'arrête immédiatement (`assert_production_secrets`
+refuse les valeurs par défaut) — comportement voulu, pas un bug. La plateforme fournit `PORT`
+automatiquement (Render : 10000 ; Hugging Face Spaces si réactivé un jour : 7860 via
+`space.Dockerfile`) ; l'image le lit dynamiquement, aucune configuration supplémentaire requise.
 
-## 5. Kubernetes (Oracle Cloud Free Tier)
+## 5. Kubernetes (cible de montée en charge, Oracle Cloud Always Free)
 
-Le cluster tire l'image GHCR (voir §3 : rendre le package **public**).
+Non activée aujourd'hui (production actuelle : §4, Render) — prête à l'être : Terraform
+provisionne la VM et installe K3s, `scripts/deploy.sh` applique ensuite les manifestes et crée
+les secrets (source unique de vérité pour la couche applicative, jamais dupliquée entre les deux).
 
-**Option A — provisionner l'infra via Terraform** (crée une VM A1 + K3s) :
+**Une seule commande** (voir `Makefile` cible `deploy`) :
 
 ```bash
-cd terraform && terraform init && terraform apply \
-  -var="tenancy_ocid=ocid1.tenancy.." \
-  -var="user_ocid=ocid1.user.." \
-  -var="compartment_ocid=ocid1.compartment.." \
-  -var="fingerprint=xx:xx" \
-  -var="private_key_path=~/.oci/key.pem" \
-  -var="ssh_public_key=ssh-rsa AAAA..."
-# cloud-init installe K3s, cree le namespace + le secret JWT, et applique
-# deployment.yaml + service.yaml (NodePort 30080).
+export TF_VAR_tenancy_ocid=ocid1.tenancy..
+export TF_VAR_user_ocid=ocid1.user..
+export TF_VAR_compartment_ocid=ocid1.compartment..
+export TF_VAR_fingerprint=xx:xx
+export TF_VAR_private_key_path=~/.oci/key.pem
+export TF_VAR_ssh_public_key="ssh-rsa AAAA..."
+export SSH_KEY=~/.ssh/id_ed25519
+make deploy
 ```
 
-**Option B — cluster deja existant** :
+Ça provisionne la VM (Terraform), installe K3s, récupère le kubeconfig, crée le namespace et un
+secret JWT + client généré aléatoirement (jamais de valeur par défaut), applique
+`deployment.yaml` (2 réplicas) et `service.yaml`, puis affiche l'URL : `http://<ip>:30080/v1/health`.
+
+**Rotation du secret** sur un cluster déjà déployé :
 
 ```bash
-kubectl apply -f k8s/namespace.yaml -f k8s/secret.yaml \
-  -f k8s/deployment.yaml -f k8s/service.yaml
-# rotation du secret JWT en prod :
-kubectl -n cif create secret generic cif-api-secret \
-  --from-literal=jwt=$(openssl rand -hex 32) --dry-run=client -o yaml | kubectl apply -f -
-```
-
-Vérification et URL de demo :
-
-```bash
-kubectl -n cif get pods
-# Service NodePort 30080 -> http://<ip-publique-du-node>:30080/v1/health
+KUBECONFIG=/tmp/cif-k3s.yaml kubectl -n cif create secret generic cif-api-secret \
+  --from-literal=jwt=$(openssl rand -hex 32) \
+  --from-literal=client_secret=$(openssl rand -hex 16) \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n cif rollout restart deployment/cif-api
 ```
 
 > `ingress.yaml` est **optionnel** : il nécessite nginx-ingress + cert-manager +

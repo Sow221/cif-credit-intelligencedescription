@@ -11,6 +11,21 @@ d'expertise : reproductible, testée, instrumentée, déployable.
 > version *engineering-grade* de ce prototype, prête à accueillir les données réelles CIF via le
 > protocole d'audit V1.1.
 
+## API en production
+
+**https://cif-credit-intelligence.onrender.com/docs** — documentation interactive (Swagger),
+testable directement dans le navigateur. Sert deux modèles : le pilote CIF synthétique
+(`/v1/predict`) et le champion validé sur données publiques réelles Lending Club
+(`/v1/lending-club/score`, voir `docs/validation/lending-club-benchmark.md`).
+
+Le déploiement actuel (Render, instance unique à coût nul) est un point de départ délibérément
+léger, pas une limite de conception : l'architecture est bâtie pour la montée en charge dès le
+premier jour — API sans état (le modèle est chargé une fois, aucune session serveur), registre
+de modèles versionné avec promotion/rollback (`src/models/promotion.py`), manifestes Kubernetes
+en réplicas (`k8s/deployment.yaml`) et infrastructure-as-code prête (`terraform/`) pour un
+cluster dédié quand le trafic le justifiera. Passer à l'échelle est un changement de cible de
+déploiement, pas une réécriture.
+
 ## Architecture (alignée sur le cahier du cabinet)
 
 ```
@@ -31,10 +46,10 @@ migrations/               # Alembic (schema PostgreSQL versionné)
 pipelines/                # Définitions Dagster (assets, jobs, schedules)
 conf/                     # Configuration Hydra/YAML (data, model, decision, evaluation, serving)
 data/                     # Données (non versionnées, voir data/README.md) + model cards + baseline drift
-deploy/                   # Cibles de déploiement : huggingface/ (démo), model/ (modèle exporté cuit dans l'image)
+deploy/                   # Artefacts de déploiement : modèles exportés cuits dans l'image, gabarits de service
 docker/                   # Dockerfiles (api, dagster, mlflow)
 infra/                    # Stack locale : Compose, Prometheus, Grafana, Alertmanager, observability/
-k8s/  terraform/          # Cible production (K3s + Oracle Cloud)
+k8s/  terraform/          # Cible de montée en charge (K3s + Oracle Cloud), prête, non activée
 scripts/                  # Scripts d'exploitation (deploy, téléchargement des données)
 tests/                    # Tests unitaires et d'intégration
 docs/                     # Charte, ADR (adr/), runbooks (runbooks/), rapports de validation (validation/)
@@ -128,10 +143,11 @@ Ces résultats valident la **méthode**, pas la performance sur le portefeuille 
 
 ## État
 
-Phase 1 — Infrastructure (ce dépôt). Phase 2 — Reproduction du prototype synthétique.
-Phase 3 — Protocole données réelles CIF (shadow mode).
+Phase 1 — Infrastructure (ce dépôt), **terminée et en production**. Phase 2 — Validation de la
+méthode sur données publiques réelles (Lending Club), **terminée** — voir « API en production »
+ci-dessus et `docs/validation/`. Phase 3 — Protocole données réelles CIF (shadow mode), à venir.
 
-**Rigueur exécutée** : 78 tests verts (unitaires + intégration, tous exécutés en CI), couverture 73 % (seuil CI : 70 %, cible : 90 %), ruff et `mypy --strict` sans erreur.
+**Rigueur exécutée** : 107 tests verts (unitaires + intégration, tous exécutés en CI), couverture 74 % (seuil CI : 70 %, cible : 90 %), ruff et `mypy --strict` sans erreur, CI et déploiement réels et verts sur GitHub Actions.
 
 ## Avancement selon le plan du cabinet (retour.txt)
 
