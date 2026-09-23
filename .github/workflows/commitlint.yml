@@ -1,0 +1,21 @@
+name: Commit messages
+
+# Enforces Conventional Commits (feat:, fix:, docs:, refactor:, test:, ci:, chore:...)
+# on every pull request and every push to main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v6

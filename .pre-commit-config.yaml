@@ -1,4 +1,6 @@
 # Pre-commit — qualité du code à chaque commit
+default_install_hook_types: [pre-commit, commit-msg]
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.5.0
@@ -22,3 +24,9 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=2048"]
       - id: detect-private-key
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]

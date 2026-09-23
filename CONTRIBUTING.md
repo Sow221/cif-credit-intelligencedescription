@@ -33,6 +33,10 @@ Actions (`.github/workflows/ci.yml`) dès l'ouverture, pas seulement sur `main`.
   le *quoi* (le code dit déjà le quoi).
 - Un commit = un changement cohérent, message qui explique la raison, pas juste la liste des
   fichiers touchés.
+- Messages au format [Conventional Commits](https://www.conventionalcommits.org/fr/) :
+  `type(scope): résumé` avec `feat`, `fix`, `docs`, `refactor`, `test`, `perf`, `ci`, `build`
+  ou `chore` (ex. `fix(api): rejeter les montants négatifs`). Vérifié localement par le hook
+  `commit-msg` (`pre-commit install`) et en CI (`.github/workflows/commitlint.yml`).
 
 ## Proposer un modèle candidat (le cas d'usage principal de ce dépôt)
 
