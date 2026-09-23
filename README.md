@@ -154,7 +154,7 @@ Phase 1 — Infrastructure (ce dépôt), **terminée et en production**. Phase 2
 méthode sur données publiques réelles (Lending Club), **terminée** — voir « API en production »
 ci-dessus et `docs/validation/`. Phase 3 — Protocole données réelles CIF (shadow mode), à venir.
 
-**Rigueur exécutée** : 125 tests verts (unitaires + intégration, tous exécutés en CI), couverture 74 % (seuil CI : 70 %, cible : 90 %), ruff et `mypy --strict` sans erreur, CI et déploiement réels et verts sur GitHub Actions.
+**Rigueur exécutée** : 143 tests verts (unitaires + intégration, tous exécutés en CI, y compris la couverture des 11 commandes CLI via `click.testing.CliRunner`), couverture 87 % (seuil CI : 70 %, cible : 90 %), ruff et `mypy --strict` sans erreur, CI et déploiement réels et verts sur GitHub Actions.
 
 ## Avancement selon le plan du cabinet (retour.txt)
 

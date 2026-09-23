@@ -169,7 +169,7 @@ def create_app(
 
     app = FastAPI(
         title="CIF Credit Intelligence API",
-        version="1.2.0",
+        version="1.2.1",
         description="Service de scoring de crédit — CIF Digital Platform §M07. "
         "Les décisions ne sont pas contractuelles : human-in-the-loop obligatoire pour REVUE_HUMAINE.",
         lifespan=lifespan,

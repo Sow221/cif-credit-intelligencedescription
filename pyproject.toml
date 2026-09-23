@@ -1,6 +1,6 @@
 [project]
 name = "cif-credit-intelligence"
-version = "1.2.0"
+version = "1.2.1"
 description = "CIF Credit Intelligence — plateforme de scoring de crédit pour l'écosystème CIF/DigiCoop-WA+"
 readme = "README.md"
 requires-python = ">=3.11"

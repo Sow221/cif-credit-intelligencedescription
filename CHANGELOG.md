@@ -3,6 +3,22 @@
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; ce projet suit
 [Semantic Versioning](https://semver.org/lang/fr/) une fois publié (voir §Versionnement plus bas).
 
+## [1.2.1] — 2026-09-23
+
+### Ajouté
+- **Couverture de tests des commandes CLI** (`tests/unit/test_cli.py`, 18 tests) : les 11 points
+  d'entrée (`cif-generate`, `cif-train`, `cif-evaluate`, `cif-decision`, `cif-export-model`,
+  `cif-export-lc-model`, `cif-ingest-lc`, `cif-benchmark`, `cif-promote`/`cif-rollback`,
+  `cif-replay-monitoring`, `cif-register-model`) étaient jusqu'ici exercés uniquement à travers
+  leur logique métier sous-jacente, jamais via leur câblage CLI réel (options → fonctions
+  appelées). Testés avec `click.testing.CliRunner`, dépendances lourdes (MLflow, disque)
+  isolées par `monkeypatch`. Fait passer la couverture globale de 74 % à 87 %.
+- Au passage : documenté (`_patch_mlflow_submodule`) un piège de test réel découvert en écrivant
+  ces tests — `mlflow.sklearn`, chargé paresseusement par MLflow, n'est pas le même objet Python
+  quand on y accède comme attribut de paquet (`mlflow.sklearn.load_model`) que celui enregistré
+  dans `sys.modules["mlflow.sklearn"]` ; seul un patch direct via `sys.modules` intercepte
+  effectivement l'appel.
+
 ## [1.2.0] — 2026-09-23
 
 ### Ajouté

@@ -69,6 +69,6 @@ dépendance invisible sans cette information.
 ## Ce qui n'est volontairement pas encore fait
 
 Avant de proposer une contribution qui en dépend, vérifie l'état réel dans `CHANGELOG.md` et les
-issues ouvertes : couverture de tests à 90 % (74 % aujourd'hui, seuil CI à 70 %), Redis non
+issues ouvertes : couverture de tests à 90 % (87 % aujourd'hui, seuil CI à 70 %), Redis non
 encore provisionné sur la cible Kubernetes (le code le
 supporte via `CIF_REDIS_URL`, voir `deploy/huggingface/README.md`, mais rien ne le déploie encore).
