@@ -3,6 +3,18 @@
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; ce projet suit
 [Semantic Versioning](https://semver.org/lang/fr/) une fois publié (voir §Versionnement plus bas).
 
+## [1.1.0] — 2026-09-23
+
+### Ajouté
+- **Rate limiting partagé via Redis** (`RedisRateLimiter`, `src/api/middleware.py`) : le
+  limiteur par défaut compte en mémoire du processus, correct pour une seule instance (Render
+  aujourd'hui) mais silencieusement incorrect dès plusieurs réplicas — chaque processus compte
+  séparément, le quota réel devient `rate_per_minute × nb_instances`. `CIF_REDIS_URL` bascule
+  automatiquement sur un compteur partagé (fenêtre glissante atomique par script Lua). Dégrade
+  proprement si Redis est injoignable au démarrage (repli sur le comportement mono-instance,
+  jamais un refus de démarrer). Vérifié avec deux conteneurs Docker distincts derrière un même
+  Redis : quota partagé de 5 confirmé (pas 5 par conteneur) par de vrais appels HTTP alternés.
+
 ## [1.0.0] — 2026-09-22
 
 Premier passage en production réelle et publique. Jusqu'ici le dépôt démontrait une

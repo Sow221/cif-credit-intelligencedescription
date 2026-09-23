@@ -17,8 +17,9 @@ from typing import Any
 
 import mlflow
 from fastapi import FastAPI
+from redis.asyncio import Redis
 
-from api.middleware import MetricsMiddleware, RateLimiter, RequestIDMiddleware
+from api.middleware import MetricsMiddleware, RateLimiter, RedisRateLimiter, RequestIDMiddleware
 from api.routes import router_plain, router_v1
 from api.security import assert_production_secrets
 from config.schema import FeatureConfig
@@ -41,6 +42,12 @@ class ModelContainer:
     def __init__(self, model: Any | None = None, cols: list[str] | None = None) -> None:
         self.model = model
         self.cols = cols or feature_columns(FeatureConfig())
+
+
+def _build_async_redis_client(redis_url: str) -> Redis:
+    """Construit le client Redis asynchrone (n'ouvre pas de connexion tant qu'aucune commande
+    n'est envoyée — c'est le ``ping()`` de l'appelant qui vérifie réellement la joignabilité)."""
+    return Redis.from_url(redis_url, decode_responses=False)
 
 
 async def _drift_loop(monitor: DriftMonitor) -> None:
@@ -126,6 +133,21 @@ def create_app(
             logger.warning("serving.lending_club.disabled", error=str(exc))
             app.state.lending_club_predictor = None
 
+        # Rate limiting : Redis si CIF_REDIS_URL est configuré et joignable (correct à travers
+        # plusieurs instances/réplicas), sinon repli en mémoire du processus (correct pour une
+        # seule instance — ce que sert Render aujourd'hui). Jamais si l'appelant a explicitement
+        # injecté un limiteur (tests). Dégrade proprement : un Redis indisponible au démarrage
+        # ne doit pas empêcher l'API de servir, juste revenir au comportement mono-instance.
+        redis_url = os.environ.get("CIF_REDIS_URL") or os.environ.get("REDIS_URL")
+        if rate_limiter is None and redis_url:
+            try:
+                redis_client = _build_async_redis_client(redis_url)
+                await redis_client.ping()
+                app.state.rate_limiter = RedisRateLimiter(redis_client, settings.api.request_limits_rate_per_minute)
+                logger.info("serving.rate_limiter.redis")
+            except Exception as exc:  # pragma: no cover
+                logger.warning("serving.rate_limiter.redis_disabled", error=str(exc))
+
         # Monitoring de drift temps réel (Evidently) — désactivé proprement si la
         # baseline ne peut être construite (ex : dépendance manquante).
         cols = feature_columns(FeatureConfig())
@@ -147,7 +169,7 @@ def create_app(
 
     app = FastAPI(
         title="CIF Credit Intelligence API",
-        version="1.0.0",
+        version="1.1.0",
         description="Service de scoring de crédit — CIF Digital Platform §M07. "
         "Les décisions ne sont pas contractuelles : human-in-the-loop obligatoire pour REVUE_HUMAINE.",
         lifespan=lifespan,

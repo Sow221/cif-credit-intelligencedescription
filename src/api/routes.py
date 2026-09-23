@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from api.middleware import RateLimiter
+from api.middleware import RateLimiterProtocol
 from api.schemas import (
     HealthResponse,
     LendingClubScoreRequest,
@@ -55,9 +55,9 @@ def _client_identity(request: Request) -> str:
     return request.headers.get("X-Client-Id", request.client.host if request.client else "anonymous")
 
 
-def _enforce_rate_limit(request: Request, client: str) -> None:
-    rate_limiter: RateLimiter = request.app.state.rate_limiter
-    if not rate_limiter.allow(client):
+async def _enforce_rate_limit(request: Request, client: str) -> None:
+    rate_limiter: RateLimiterProtocol = request.app.state.rate_limiter
+    if not await rate_limiter.allow(client):
         raise HTTPException(status_code=429, detail="Rate limit dépassé (requêtes/minute)")
 
 
@@ -118,7 +118,7 @@ async def score_alias(
 
 
 async def _score_handlers(payload: ScoreRequest, request: Request, client: str) -> ScoreResponse:
-    _enforce_rate_limit(request, client)
+    await _enforce_rate_limit(request, client)
     container: Any = request.app.state.container
     predictor: Predictor = request.app.state.predictor
     if container.model is None:
@@ -191,7 +191,7 @@ async def lending_club_score(
     Endpoint de démonstration méthodologique, distinct de ``/v1/predict`` (pilote CIF synthétique) :
     schéma de features et policy différents, jamais à confondre dans une même réponse.
     """
-    _enforce_rate_limit(request, client)
+    await _enforce_rate_limit(request, client)
     lc_predictor: LendingClubPredictor | None = getattr(request.app.state, "lending_club_predictor", None)
     if lc_predictor is None:
         raise HTTPException(status_code=503, detail="Modèle lending_club_champion non chargé")

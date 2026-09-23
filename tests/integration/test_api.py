@@ -290,3 +290,43 @@ def test_lending_club_score_accepts_null_for_missing_numeric_feature():
         r = client.post("/v1/lending-club/score", json={"features": payload})
     assert r.status_code == 200
     assert 0.0 <= r.json()["probability"] <= 1.0
+
+
+def test_create_app_uses_redis_rate_limiter_when_configured_and_reachable(monkeypatch):
+    """Vérifie le choix réel fait par create_app, pas juste la classe RedisRateLimiter isolée."""
+    from fakeredis import FakeAsyncRedis
+
+    from api.middleware import RedisRateLimiter
+
+    monkeypatch.setenv("CIF_REDIS_URL", "redis://fake-host-never-used:6379")
+    monkeypatch.setattr("api.app._build_async_redis_client", lambda _url: FakeAsyncRedis())
+
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
+    with TestClient(app):
+        assert isinstance(app.state.rate_limiter, RedisRateLimiter)
+
+
+def test_create_app_falls_back_to_memory_when_redis_unreachable(monkeypatch):
+    """Un Redis configuré mais injoignable ne doit jamais empêcher l'API de démarrer."""
+    from api.middleware import RateLimiter
+
+    def _unreachable(_url):
+        raise ConnectionError("Redis injoignable (simulé)")
+
+    monkeypatch.setenv("CIF_REDIS_URL", "redis://fake-host-never-used:6379")
+    monkeypatch.setattr("api.app._build_async_redis_client", _unreachable)
+
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET)
+    with TestClient(app) as client:
+        assert isinstance(app.state.rate_limiter, RateLimiter)
+        r = client.get("/v1/health")
+        assert r.status_code == 200
+
+
+def test_create_app_ignores_redis_url_when_rate_limiter_explicitly_injected(monkeypatch):
+    """Un rate_limiter explicite (tests, ou un futur appelant) prime toujours sur CIF_REDIS_URL."""
+    monkeypatch.setenv("CIF_REDIS_URL", "redis://fake-host-never-used:6379")
+    explicit = RateLimiter(rate_per_minute=5)
+    app = create_app(model=_stub_model(), auth_enabled=False, jwt_secret=TEST_SECRET, rate_limiter=explicit)
+    with TestClient(app):
+        assert app.state.rate_limiter is explicit

@@ -1,6 +1,6 @@
 [project]
 name = "cif-credit-intelligence"
-version = "1.0.0"
+version = "1.1.0"
 description = "CIF Credit Intelligence — plateforme de scoring de crédit pour l'écosystème CIF/DigiCoop-WA+"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,6 +37,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "alembic>=1.13",
     "psycopg2-binary>=2.9",
+    "redis>=5.0",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +66,7 @@ dev = [
     "pandera>=0.20",
     "optuna>=3.6",
     "boto3>=1.34",
+    "fakeredis[lua]>=2.20",
 ]
 quality = [
     "great-expectations>=0.18",

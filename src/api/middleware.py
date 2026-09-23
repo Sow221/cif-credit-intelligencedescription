@@ -2,7 +2,13 @@
 
 - ``RequestIDMiddleware`` : garantit un identifiant de requête bout-en-bout (header
   ``X-Request-ID``, contextvars structlog) pour la traçabilité de l'audit trail.
-- ``RateLimiter`` : fenêtre glissante de 60 s par client ; renvoie 429 au-delà.
+- ``RateLimiter`` / ``RedisRateLimiter`` : fenêtre glissante de 60 s par client ; renvoie 429
+  au-delà. Deux implémentations d'un même protocole (``RateLimiterProtocol``) : la première
+  compte en mémoire du processus — correcte pour une seule instance, incorrecte dès qu'il y a
+  plusieurs réplicas (chacun compte séparément, le quota réel devient N fois plus permissif que
+  configuré). ``RedisRateLimiter`` compte dans un magasin partagé, correcte à toute échelle.
+  ``create_app`` choisit l'une ou l'autre selon qu'un ``CIF_REDIS_URL`` est configuré — voir
+  ``api/app.py``.
 """
 
 from __future__ import annotations
@@ -11,6 +17,11 @@ import threading
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
+    from redis.commands.core import AsyncScript
 
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -45,8 +56,21 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RateLimiterProtocol(Protocol):
+    """Contrat commun aux deux implémentations — permet à l'API de les utiliser indifféremment."""
+
+    rate_per_minute: int
+
+    async def allow(self, client: str) -> bool: ...
+
+
 class RateLimiter:
-    """Rate limiting par fenêtre glissante (thread-safe)."""
+    """Rate limiting par fenêtre glissante, en mémoire du processus (thread-safe).
+
+    Correct pour une seule instance. Avec plusieurs réplicas (K8s, plusieurs workers), chaque
+    processus compte séparément : le quota réel effectif devient ``rate_per_minute`` fois le
+    nombre d'instances, pas celui configuré. Utiliser ``RedisRateLimiter`` au-delà d'une instance.
+    """
 
     def __init__(self, rate_per_minute: int = 120) -> None:
         if rate_per_minute <= 0:
@@ -55,7 +79,7 @@ class RateLimiter:
         self._hits: dict[str, list[float]] = {}
         self._lock = threading.Lock()
 
-    def allow(self, client: str) -> bool:
+    async def allow(self, client: str) -> bool:
         """True si la requête est autorisée, False si le quota du client est dépassé."""
         now = time.monotonic()
         window_start = now - 60.0
@@ -67,3 +91,52 @@ class RateLimiter:
             hits.append(now)
             self._hits[client] = hits
             return True
+
+
+# Script Lua : lit + purge la fenêtre + décide + enregistre en une seule opération atomique côté
+# serveur Redis. Sans ça, deux requêtes concurrentes sur deux instances différentes pourraient
+# toutes les deux lire "quota non atteint" avant que l'une des deux n'écrive son propre hit
+# (race condition classique du "check-then-act" à travers le réseau).
+_SLIDING_WINDOW_LUA = """
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local limit = tonumber(ARGV[3])
+redis.call('ZREMRANGEBYSCORE', key, '-inf', now - window)
+local count = redis.call('ZCARD', key)
+if count >= limit then
+  redis.call('EXPIRE', key, window)
+  return 0
+end
+redis.call('ZADD', key, now, now .. '-' .. redis.call('INCR', key .. ':seq'))
+redis.call('EXPIRE', key, window)
+redis.call('EXPIRE', key .. ':seq', window)
+return 1
+"""
+
+
+class RedisRateLimiter:
+    """Rate limiting par fenêtre glissante dans Redis — correct à travers plusieurs instances.
+
+    Même fenêtre de 60 s et même sémantique que ``RateLimiter`` ; un seul magasin partagé,
+    donc un client qui frappe l'instance A puis l'instance B est compté une seule fois, pas deux.
+    """
+
+    def __init__(self, redis_client: Redis, rate_per_minute: int = 120, window_seconds: int = 60) -> None:
+        if rate_per_minute <= 0:
+            raise ValueError("rate_per_minute doit être strictement positif")
+        self.rate_per_minute = rate_per_minute
+        self.window_seconds = window_seconds
+        self._redis = redis_client
+        self._script: AsyncScript | None = None
+
+    async def allow(self, client: str) -> bool:
+        """True si la requête est autorisée, False si le quota du client est dépassé."""
+        if self._script is None:
+            self._script = self._redis.register_script(_SLIDING_WINDOW_LUA)
+        now = time.time()
+        result = await self._script(
+            keys=[f"cif:ratelimit:{client}"],
+            args=[now, self.window_seconds, self.rate_per_minute],
+        )
+        return bool(result)

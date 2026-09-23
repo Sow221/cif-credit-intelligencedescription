@@ -128,3 +128,18 @@ kubectl -n cif rollout restart deployment/cif-api
 - JWT `HS256`, TTL 1h. CORS ouvert par défaut (`*`) : restreindre en prod.
 - Un seul couple identifiant/secret client (`cif-agent`) : suffisant pour une démo,
   pas pour plusieurs clients réels (voir roadmap : gestion multi-clients).
+
+## Rate limiting à plusieurs instances (`CIF_REDIS_URL`)
+
+Le rate limiting par défaut compte en mémoire du processus — correct pour une seule instance
+(ce que sert Render aujourd'hui), **incorrect dès qu'il y a plusieurs réplicas** : chaque
+processus compte séparément, le quota réel effectif devient `rate_per_minute × nb_instances`.
+
+Définir `CIF_REDIS_URL` (ex. `redis://host:6379`) bascule automatiquement sur un compteur
+partagé dans Redis (`src/api/middleware.py::RedisRateLimiter`), vérifié fonctionnel avec deux
+conteneurs distincts derrière un même Redis : un quota de 5 partagé, pas 5 par conteneur.
+Dégrade proprement si Redis est injoignable au démarrage — l'API revient au comportement
+mono-instance plutôt que de refuser de démarrer.
+
+Pertinent pour la cible Kubernetes (`k8s/`, plusieurs réplicas) : ajouter un service Redis au
+cluster et définir `CIF_REDIS_URL` dans `k8s/deployment.yaml` avant de monter en charge.
