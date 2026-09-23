@@ -1,6 +1,6 @@
 [project]
 name = "cif-credit-intelligence"
-version = "1.1.0"
+version = "1.2.0"
 description = "CIF Credit Intelligence — plateforme de scoring de crédit pour l'écosystème CIF/DigiCoop-WA+"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -94,6 +94,7 @@ cif-ingest-lc = "cli.ingest_lending_club:main"
 cif-benchmark = "cli.benchmark:main"
 cif-promote = "cli.promote:promote"
 cif-rollback = "cli.promote:rollback_cmd"
+cif-replay-monitoring = "cli.replay_monitoring:main"
 cif-api = "api.app:main"
 
 [build-system]

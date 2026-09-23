@@ -105,3 +105,54 @@ def compute_drift_ratio(reference: pd.DataFrame, current: pd.DataFrame) -> float
         return round(n_drift / max(n, 1), 4)
     except (KeyError, TypeError):
         return 0.0
+
+
+def _psi_from_shares(ref_pct: pd.Series, cur_pct: pd.Series) -> float:
+    """Formule PSI standard : Σ (cur% - ref%) · ln(cur% / ref%), sur des parts déjà non nulles."""
+    import numpy as np
+
+    eps = 1e-4  # évite ln(0) sans fausser significativement une part réelle
+    ref = ref_pct.clip(lower=eps)
+    cur = cur_pct.clip(lower=eps)
+    return float(np.sum((cur - ref) * np.log(cur / ref)))
+
+
+def compute_psi(reference: pd.Series, current: pd.Series, bins: int = 10) -> float:
+    """PSI (Population Stability Index) d'une variable — calcul direct, sans Evidently.
+
+    Standard du secteur, indépendant de tout choix de test statistique par colonne : découpe
+    la référence en ``bins`` classes de fréquence égale (déciles par défaut), compare la part de
+    la population courante dans chaque classe. Repères usuels : PSI < 0.1 pas de dérive
+    notable, 0.1-0.25 dérive modérée à surveiller, > 0.25 dérive significative.
+
+    Fonctionne pour le numérique (classes par quantile) et le catégoriel (classes = catégories) ;
+    détecté automatiquement par le type de la série.
+    """
+    import numpy as np
+
+    ref = reference.dropna()
+    cur = current.dropna()
+    if ref.empty or cur.empty:
+        return 0.0
+
+    if pd.api.types.is_numeric_dtype(ref):
+        edges = np.unique(np.quantile(ref, np.linspace(0, 1, bins + 1)))
+        if len(edges) < 3:  # variable quasi constante : pas de découpage informatif possible
+            return 0.0
+        edges = edges.copy()
+        edges[0], edges[-1] = -np.inf, np.inf
+        ref_bins = pd.cut(ref, edges, duplicates="drop")
+        cur_bins = pd.cut(cur, edges, duplicates="drop")
+    else:
+        ref_bins = ref.astype(str)
+        cur_bins = cur.astype(str)
+
+    ref_pct = ref_bins.value_counts(normalize=True, sort=False)
+    cur_pct = cur_bins.value_counts(normalize=True, sort=False).reindex(ref_pct.index, fill_value=0.0)
+    return round(_psi_from_shares(ref_pct, cur_pct), 4)
+
+
+def compute_psi_report(reference: pd.DataFrame, current: pd.DataFrame, columns: list[str]) -> dict[str, float]:
+    """PSI par colonne. La colonne au PSI le plus élevé domine la décision d'alerte (convention
+    standard : une seule variable très dérivée doit alerter, une moyenne la diluerait)."""
+    return {col: compute_psi(reference[col], current[col]) for col in columns if col in reference.columns}

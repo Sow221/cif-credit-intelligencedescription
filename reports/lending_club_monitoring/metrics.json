@@ -1,0 +1,253 @@
+{
+  "thresholds": {
+    "psi_alert": 0.25,
+    "roc_auc_alert": 0.65,
+    "ece_alert": 0.1
+  },
+  "any_alert": true,
+  "representative_month": "2015-09",
+  "drift_series": [
+    {
+      "month": "2014-01",
+      "psi": 0.1053,
+      "worst_feature": "purpose",
+      "alert": false
+    },
+    {
+      "month": "2014-02",
+      "psi": 0.1022,
+      "worst_feature": "purpose",
+      "alert": false
+    },
+    {
+      "month": "2014-03",
+      "psi": 0.2227,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2014-04",
+      "psi": 0.2764,
+      "worst_feature": "verification_status",
+      "alert": true
+    },
+    {
+      "month": "2014-05",
+      "psi": 0.1377,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2014-06",
+      "psi": 0.1666,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2014-07",
+      "psi": 0.1582,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2014-08",
+      "psi": 0.1286,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2014-09",
+      "psi": 0.109,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2014-10",
+      "psi": 0.1284,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2014-11",
+      "psi": 0.136,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2014-12",
+      "psi": 0.1217,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-01",
+      "psi": 0.1782,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-02",
+      "psi": 0.1662,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-03",
+      "psi": 0.1622,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-04",
+      "psi": 0.1525,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-05",
+      "psi": 0.1951,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-06",
+      "psi": 0.1955,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-07",
+      "psi": 0.1513,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-08",
+      "psi": 0.2345,
+      "worst_feature": "verification_status",
+      "alert": false
+    },
+    {
+      "month": "2015-09",
+      "psi": 0.2838,
+      "worst_feature": "verification_status",
+      "alert": true
+    },
+    {
+      "month": "2015-10",
+      "psi": 0.2532,
+      "worst_feature": "verification_status",
+      "alert": true
+    },
+    {
+      "month": "2015-11",
+      "psi": 0.2636,
+      "worst_feature": "verification_status",
+      "alert": true
+    },
+    {
+      "month": "2015-12",
+      "psi": 0.2333,
+      "worst_feature": "verification_status",
+      "alert": false
+    }
+  ],
+  "performance_series": [
+    {
+      "month": "2015-01",
+      "n": 23631,
+      "roc_auc": 0.6714233600483229,
+      "ece": 0.014330402300681392,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-02",
+      "n": 16023,
+      "roc_auc": 0.6713830798951033,
+      "ece": 0.0090397760032772,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-03",
+      "n": 16914,
+      "roc_auc": 0.6683972169509572,
+      "ece": 0.021287683391758745,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-04",
+      "n": 23619,
+      "roc_auc": 0.6691891366581514,
+      "ece": 0.022892447822235738,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-05",
+      "n": 21539,
+      "roc_auc": 0.6716256617184442,
+      "ece": 0.02086158434852731,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-06",
+      "n": 19064,
+      "roc_auc": 0.6803400073927626,
+      "ece": 0.02301089921193347,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-07",
+      "n": 30864,
+      "roc_auc": 0.6751339930192225,
+      "ece": 0.01723809944354558,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-08",
+      "n": 23938,
+      "roc_auc": 0.6804949337490257,
+      "ece": 0.01564082580245493,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-09",
+      "n": 18765,
+      "roc_auc": 0.6821735424701809,
+      "ece": 0.02375204921014141,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-10",
+      "n": 33186,
+      "roc_auc": 0.6738291632673217,
+      "ece": 0.01741328258506363,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-11",
+      "n": 25242,
+      "roc_auc": 0.6745418667752745,
+      "ece": 0.02328095086099283,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    },
+    {
+      "month": "2015-12",
+      "n": 30241,
+      "roc_auc": 0.6762270722229288,
+      "ece": 0.030253525989019682,
+      "alert_roc_auc": false,
+      "alert_ece": false
+    }
+  ]
+}

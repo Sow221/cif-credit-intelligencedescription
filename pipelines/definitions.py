@@ -248,9 +248,52 @@ def lc_benchmark(context) -> dg.MaterializeResult:
     )
 
 
+@dg.asset(group_name="lending_club", deps=["lc_benchmark"], compute_kind="evidently")
+def lc_monitoring_replay(context) -> dg.MaterializeResult:
+    """Rejoue la surveillance (dérive + performance retardée) sur le champion fraîchement promu.
+
+    Voir ``monitoring.replay`` pour la méthode : dérive mensuelle sur 24 mois (indicateur
+    avancé), performance réelle sur les 12 mois de test seulement (indicateur retardé, jamais
+    touché à l'entraînement/calibration).
+    """
+    from data.lending_club import temporal_partition
+    from monitoring.replay import run_replay, write_replay_artifacts
+
+    features = pd.read_parquet(CONF.lending_club.processed_path)
+    train, _, _ = temporal_partition(features, CONF.lending_club)
+
+    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", CONF.model.mlflow_tracking_uri))
+    loaded = mlflow.pyfunc.load_model("models:/lending_club_champion@champion")
+    champion = loaded.unwrap_python_model().model
+
+    mlflow.set_experiment("lending_club_monitoring_replay")
+    with mlflow.start_run(run_name="dagster-monitoring-replay"):
+        result = run_replay(features, train, champion)
+        out = write_replay_artifacts(result, features, train, "reports/lending_club_monitoring")
+        for _, row in result.drift_series.iterrows():
+            mlflow.log_metric("psi", row["psi"], step=int(row["month"].replace("-", "")))
+        for _, row in result.performance_series.iterrows():
+            step = int(row["month"].replace("-", ""))
+            mlflow.log_metric("realized_roc_auc", row["roc_auc"], step=step)
+            mlflow.log_metric("realized_ece", row["ece"], step=step)
+        mlflow.log_metric("any_alert", int(result.any_alert))
+        mlflow.log_artifacts(str(out))
+
+    context.log.info("lending_club.monitoring_replay.done", extra={"any_alert": result.any_alert})
+    return dg.MaterializeResult(
+        metadata={
+            "any_alert": result.any_alert,
+            "representative_month": result.representative_month,
+            "n_months_drift": len(result.drift_series),
+            "n_months_performance": len(result.performance_series),
+            "report": dg.MetadataValue.path(str(out / "metrics.json")),
+        }
+    )
+
+
 lending_club_job = dg.define_asset_job(
     name="lending_club_pipeline",
-    selection=[lc_raw_available, lc_interim, lc_features, lc_benchmark],
+    selection=[lc_raw_available, lc_interim, lc_features, lc_benchmark, lc_monitoring_replay],
 )
 
 # Lending Club est un jeu de données statique (pas d'API live) : un cron quotidien ne
@@ -280,6 +323,7 @@ defs = dg.Definitions(
         lc_interim,
         lc_features,
         lc_benchmark,
+        lc_monitoring_replay,
     ],
     jobs=[single_asset_job, lending_club_job],
     schedules=[daily_schedule, lending_club_schedule],

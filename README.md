@@ -134,6 +134,7 @@ documentées :
 pip install -e ".[dev,data]"
 make data-download      # Kaggle CLI, voir data/README.md
 make pipeline           # ingest (validation Pandera) puis benchmark (baseline vs XGBoost)
+cif-replay-monitoring   # rejeu de monitoring sur historique (dérive + performance retardée)
 ```
 
 Protocole out-of-time (ADR `docs/adr/`) : split par date d'octroi, baseline logistique, XGBoost
@@ -141,13 +142,19 @@ contraint par monotonicité (Optuna, CV temporelle), calibration isotonique sur 
 test évalué une fois, champion retenu seulement si l'écart d'AUC est statistiquement démontré.
 Ces résultats valident la **méthode**, pas la performance sur le portefeuille CIF.
 
+Le rejeu de monitoring (`docs/validation/monitoring-replay.md`) simule la surveillance de
+production sur 24 mois d'historique réel : dérive (PSI) disponible immédiatement, performance
+réelle disponible seulement sur les 12 mois de test (jamais touchés à l'entraînement/calibration,
+avec le décalage de 36 mois qu'aurait connu un vrai déploiement). Résultat non provoqué : 4 mois
+déclenchent une alerte PSI sur une même variable, la performance reste stable sur toute la période.
+
 ## État
 
 Phase 1 — Infrastructure (ce dépôt), **terminée et en production**. Phase 2 — Validation de la
 méthode sur données publiques réelles (Lending Club), **terminée** — voir « API en production »
 ci-dessus et `docs/validation/`. Phase 3 — Protocole données réelles CIF (shadow mode), à venir.
 
-**Rigueur exécutée** : 107 tests verts (unitaires + intégration, tous exécutés en CI), couverture 74 % (seuil CI : 70 %, cible : 90 %), ruff et `mypy --strict` sans erreur, CI et déploiement réels et verts sur GitHub Actions.
+**Rigueur exécutée** : 125 tests verts (unitaires + intégration, tous exécutés en CI), couverture 74 % (seuil CI : 70 %, cible : 90 %), ruff et `mypy --strict` sans erreur, CI et déploiement réels et verts sur GitHub Actions.
 
 ## Avancement selon le plan du cabinet (retour.txt)
 

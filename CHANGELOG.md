@@ -3,6 +3,22 @@
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; ce projet suit
 [Semantic Versioning](https://semver.org/lang/fr/) une fois publié (voir §Versionnement plus bas).
 
+## [1.2.0] — 2026-09-23
+
+### Ajouté
+- **Rejeu de monitoring sur historique** (`src/monitoring/replay.py`, `cif-replay-monitoring`,
+  asset Dagster `lc_monitoring_replay`) : dernière pièce scientifique identifiée depuis le début
+  de la validation Lending Club. Rejoue 24 mois de dérive (PSI) et 12 mois de performance réelle
+  retardée sur le champion enregistré. **Résultat réel, non provoqué** : 4 mois sur 24
+  déclenchent une alerte PSI sur `verification_status` (probable changement de processus côté
+  Lending Club), performance stable sur toute la période (ROC-AUC 0,668-0,682, jamais proche des
+  seuils). Voir `docs/validation/monitoring-replay.md`.
+- **PSI (Population Stability Index) enfin implémenté** (`monitoring.drift.compute_psi`) : la
+  configuration déclarait `psi_alert=0.25` depuis le début du projet sans qu'aucun code ne
+  calcule réellement un PSI — trouvé en construisant le rejeu, corrigé. Contourne au passage un
+  bug connu d'Evidently (`numpy#10322`, `np.histogram` sur des valeurs regroupées à des paliers
+  ronds — ici les plafonds de prêt) plutôt que de le patcher artificiellement.
+
 ## [1.1.0] — 2026-09-23
 
 ### Ajouté
