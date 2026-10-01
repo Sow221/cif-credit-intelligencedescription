@@ -1,249 +1,272 @@
 # CIF Credit Intelligence
 
-| Élément | Détail |
+**Credit decision support platform for the CIF ecosystem.** Risk scoring, thin-file management, and comprehensive methodological audit.
+
+> Plateforme d'aide à la décision de crédit pour les SFD de la CIF. Scoring de risque, gestion des Thin-File, audit méthodologique complet.
+
+---
+
+## Overview
+
+| | |
 |---|---|
-| Type | Plateforme de scoring de crédit |
-| Domaine | CIF / DigiCoop-WA+ |
-| Langage principal | Python 3.11 |
-| Licence | Apache 2.0 |
-| API de production | https://cif-credit-intelligence.onrender.com/docs |
-| Statut | Production |
+| **Ecosystem** | CIF / DigiCoop-WA+ |
+| **Language** | Python 3.11 |
+| **License** | Apache 2.0 |
+| **API Status** | Production |
+| **Endpoint** | https://cif-credit-intelligence.onrender.com/docs |
 
-Plateforme de scoring de crédit pour l'écosystème CIF / DigiCoop-WA+, conçue comme une infrastructure d'intelligence financière selon les standards d'un cabinet d'expertise : reproductible, testée, instrumentée, déployable.
+A credit scoring platform engineered as a financial intelligence infrastructure, following the standards of a professional consulting firm: reproducible, tested, instrumented, deployable.
 
-## Table des matières
+The prototype’s ROC-AUC of 0.94 (`cif_credit_official:1.0.1`) is an experimental result on synthetic data, not a CIF benchmark. This repository contains the engineering-grade version, ready to ingest real CIF data through the V1.1 audit protocol.
 
-- [Vue d'ensemble](#vue-densemble)
-- [API en production](#api-en-production)
-- [Architecture](#architecture)
-- [Stack technique](#stack-technique)
-- [Démarrage rapide](#démarrage-rapide)
-- [Conformité CIF](#conformité-cif)
-- [Validation](#validation)
-- [État du projet](#état-du-projet)
-- [Documentation complémentaire](#documentation-complémentaire)
+---
 
-## Vue d'ensemble
+## API — Production
 
-Le ROC-AUC de 0.94 (`cif_credit_official:1.0.1`) du prototype synthétique est un résultat expérimental sur environnement synthétique, pas un benchmark CIF. Il reste structurellement optimiste : le générateur dérive toutes les features à partir d'un facteur latent unique, plus séparable qu'un vrai portefeuille de crédit.
+**https://cif-credit-intelligence.onrender.com/docs**
 
-Ce dépôt contient la version engineering-grade de ce prototype, prête à accueillir les données réelles CIF via le protocole d'audit V1.1.
+Interactive Swagger documentation, directly testable in the browser. Two models are served:
 
-## API en production
+| Model | Endpoint | Features | Validation |
+|---|---|---|---|
+| CIF Pilot (Synthetic) | `/v1/predict` | 25 | Experimental |
+| Lending Club Champion | `/v1/lending-club/score` | 18 | Public data benchmark |
 
-https://cif-credit-intelligence.onrender.com/docs
+See `docs/validation/lending-club-benchmark.md` for validation details.
 
-Documentation interactive (Swagger), testable directement dans le navigateur. La plateforme sert deux modèles :
+### Deployment Architecture
 
-- le pilote CIF synthétique via `/v1/predict`
-- le champion validé sur données publiques réelles Lending Club via `/v1/lending-club/score`
+The current deployment (Render, single free instance) is intentionally lightweight—not a design limit.
 
-Voir `docs/validation/lending-club-benchmark.md` pour le détail de la validation du benchmark public.
+The architecture is built for scale from day one:
 
-### Infrastructure de déploiement
+- Stateless API; model loaded once, no session state
+- Versioned model registry with promotion and rollback (`src/models/promotion.py`)
+- Kubernetes manifests with replicas (`k8s/deployment.yaml`)
+- Infrastructure-as-code ready (`terraform/`) for dedicated cluster
 
-Le déploiement actuel, basé sur Render avec une instance unique à coût nul, est un point de départ délibérément léger, pas une limite de conception. L'architecture est construite pour la montée en charge dès le premier jour :
+Scaling is a deployment target change, not a rewrite.
 
-- API sans état ; le modèle est chargé une fois et aucune session serveur n'est maintenue
-- registre de modèles versionné avec promotion et rollback (`src/models/promotion.py`)
-- manifestes Kubernetes en réplicas (`k8s/deployment.yaml`)
-- infrastructure as code prête (`terraform/`) pour un cluster dédié dès que le trafic le justifie
+---
 
-Passer à l'échelle est un changement de cible de déploiement, pas une réécriture.
-
-## Architecture
-
-Structure du code alignée sur le cahier du cabinet :
+## Repository Structure
 
 ```text
 src/
-├── api/                  # API FastAPI : app.py, routes.py, schemas.py, middleware.py
-├── config/               # settings.py (Pydantic) + schema (Hydra) + load
-├── data/                 # Générateur synthétique
-├── evaluation/           # Métriques, calibration, bootstrap, robustesse, fairness
+├── api/                    FastAPI application (routes, schemas, middleware)
+├── config/                 Pydantic settings + Hydra schema
+├── data/                   Synthetic data generator
+├── evaluation/             Metrics, calibration, bootstrap, robustness, fairness
 ├── features/
-│   ├── definitions/      # Un fichier par feature + contrat (nom, version, bornes, owner, SLA)
-│   └── builder.py        # Calcul centralisé (aucune formule dupliquée)
-├── models/               # Entraînement XGBoost (train.py) + model_card.py
-├── monitoring/           # Drift (Evidently) : drift_report.py, metrics Prometheus
-├── services/             # decision_engine.py, confidence.py, predictor.py, audit_service.py
-├── cli/                  # Commandes cif-*
-├── utils/                # Logging structuré, reproductibilité
-├── config/               # Paramétrage applicatif partagé
-├── schemas/              # Contrats externes et internes
-├── validation/           # Vérifications de qualité et de conformité
-├── telemetry/            # Observabilité logique et opérationnelle
-├── cli/                  # Commandes utilisateur et déploiement
-├── api/                  # Entrées/sorties de service et routes
-├── jobs/                 # Jobs workers, ETL, orchestre
-├── workflows/            # Pipelines et orchestration
-└── utils/                # Helpers système et sécurité
+│   ├── definitions/        One file per feature + contract (name, version, bounds, owner, SLA)
+│   └── builder.py          Centralized computation (no duplicated formulas)
+├── models/                 XGBoost training + model_card.py
+├── monitoring/             Drift detection (Evidently), Prometheus metrics
+├── services/               decision_engine, confidence, predictor, audit_service
+├── cli/                    CLI commands (cif-*)
+└── utils/                  Structured logging, reproducibility
 
-migrations/               # Alembic (schema PostgreSQL versionné)
-pipelines/                # Définitions Dagster (assets, jobs, schedules)
-conf/                     # Configuration Hydra/YAML (data, model, decision, evaluation, serving)
-data/                     # Données non versionnées + model cards + baseline drift
-deploy/                   # Artefacts de déploiement : modèles exportés cuits dans l'image
-docker/                   # Dockerfiles (api, dagster, mlflow)
-infra/                    # Stack locale : Compose, Prometheus, Grafana, Alertmanager, observability/
-k8s/ terraform/           # Cible de montée en charge (K3s + Oracle Cloud), prête, non activée
-scripts/                  # Scripts d'exploitation (deploy, téléchargement des données)
-tests/                    # Tests unitaires et d'intégration
-docs/                     # Charte, ADR (adr/), runbooks (runbooks/), rapports de validation (validation/)
-reports/                  # Rapports générés publiables (métriques, backtests)
+migrations/                 Alembic (PostgreSQL schema, versioned)
+pipelines/                  Dagster definitions (assets, jobs, schedules)
+conf/                       Hydra configuration (YAML)
+data/                       Datasets (unversioned), model cards, baseline drift
+deploy/                     Deployment artifacts (models baked into image)
+docker/                     Dockerfiles (api, dagster, mlflow)
+infra/                      Local stack (Docker Compose, Prometheus, Grafana, Alertmanager)
+k8s/ terraform/             Scale target (K3s + Oracle Cloud Always Free), ready but inactive
+scripts/                    Operations scripts (deploy, data download)
+tests/                      Unit and integration tests
+docs/                       Charter, ADRs, runbooks, validation reports
+reports/                    Generated publishable reports (metrics, backtests)
 ```
 
-## Stack technique
+---
 
-| Couche | Outil |
-|---|---|
-| Langage | Python 3.11, packages typés (mypy strict, ruff) |
-| Configuration | Pydantic v2 (settings) + Hydra (YAML) |
-| Orchestration | Dagster (assets versionnés, lineage) |
-| Tracking & registry | MLflow (Postgres + MinIO) |
-| Qualité des données | Pandera (contrat bloquant) + Pydantic v2 |
-| Versionnement des données | DVC (`dvc.yaml` : ingest → benchmark) |
-| Monitoring | Evidently + Prometheus + Grafana + Alertmanager |
-| Serving | FastAPI, modèle servi depuis le registry |
-| Base de données | PostgreSQL 16 + Alembic (audit trail) |
-| CI/CD | GitHub Actions (lint → mypy → tests → build → promote) |
-| Déploiement | Render (instance unique) — K3s + Terraform (Oracle Cloud) prêts, non activés |
+## Technical Stack
 
-## Démarrage rapide
+| Layer | Tool | Purpose |
+|---|---|---|
+| Language | Python 3.11 + strict typing (mypy, ruff) | Code quality, maintainability |
+| Configuration | Pydantic v2 + Hydra | Settings management |
+| Orchestration | Dagster | Versioned assets, lineage tracking |
+| Model Tracking | MLflow (Postgres + MinIO) | Registry, experiment tracking |
+| Data Quality | Pandera + Pydantic v2 | Blocking contracts on data shape |
+| Data Versioning | DVC | Reproducible pipelines |
+| Monitoring | Evidently + Prometheus + Grafana | Drift detection, observability |
+| Serving | FastAPI | HTTP API, model inference |
+| Database | PostgreSQL 16 + Alembic | Audit trail, schema versioning |
+| CI/CD | GitHub Actions | Lint → mypy → test → build → promote |
+| Deployment | Render (current) / Kubernetes | Container orchestration |
 
-### Installation locale
+---
+
+## Quick Start
+
+### Local Installation
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate            # Windows
 source .venv/bin/activate         # Unix/macOS
+.venv\Scripts\activate            # Windows
+
 pip install -e ".[dev]"
 
-# Générer les données synthétiques
+# Generate synthetic data
 cif-generate
 
-# Entraîner (tracking MLflow local)
+# Train model (MLflow tracking)
 cif-train
 
-# Évaluer
+# Evaluate
 cif-evaluate
 ```
 
-### Stack complète (Docker)
+### Full Stack (Docker)
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d
 ```
 
-Services disponibles :
-
-- MLflow : http://localhost:5000
-- Dagster : http://localhost:3000
-- Grafana : http://localhost:3001
-- API scoring : http://localhost:8000/docs
-
-## Conformité CIF
-
-Ce dépôt implémente les exigences §M07 / §64 / §65 / §93 du cahier des charges CIF Digital Platform :
-
-- séparation Model / Policy / Workflow
-- human-in-the-loop
-- gouvernance des modèles
-- monitoring et rollback
-
-Voir `docs/` pour le détail et `traçabilité.md` du prototype.
-
-### Validation méthodologique
-
-Les garanties de validité du protocole CIF sont implémentées dans le code, pas seulement documentées.
-
-#### Split temporel
-
-`src/models/train.py` → `temporal_split`
-
-L'entraînement n'utilise jamais de split aléatoire. La coupure suit l'ordre temporel (proxy `customer_id` sur le jeu synthétique, à substituer par une vraie colonne `application_date` sur les données réelles). Cette règle est verrouillée par `tests/unit/test_temporal_split.py`.
-
-#### Garde anti-leakage
-
-`src/features/validate.py` + `src/features/builder.py` : deux niveaux.
-
-1. Blocklist nominale : toute variable de fuite nommée, par exemple `p_default_true`, provoque une erreur bloquante au feature engineering et une réponse 422 à l'API. Le générateur (`src/data/synthetic.py`) ne diffuse plus `p_default_true` dans la table clients.
-2. Garde structurelle : `assert_no_correlation_leakage` ; toute feature dont la corrélation avec la cible dépasse 0.75 est bloquante. Cela détecte une fuite sémantique qu'un nom de colonne innocent ne révélerait pas. Un cas historique corrigé est celui de `historical_default_rate`, dérivée d'un `loan_status` calculé à partir de la cible. La corrélation atteignait environ 0.94, et elle n'aurait pas été détectée par la seule blocklist nominale.
-
-Cette protection est verrouillée par `tests/unit/test_leakage.py` et `tests/integration/test_api.py`.
-
-#### Feature-set = modèle officiel calibré
-
-`src/features/builder.py` : les 25 features du `cifci` (profil/revenu, agrégation des prêts, ratios dérivés) sont reconstruites comme source de vérité unique, avec contrats (`src/features/definitions/`) et tests.
-
-#### Hyperparamètres du modèle
-
-Les hyperparamètres sont alignés sur la version officiellement calibrée :
-
-- `max_depth=4`
-- `learning_rate=0.03`
-- `n_estimators=300`
-
-## Validation
-
-### Données publiques réelles (Lending Club)
-
-```bash
-pip install -e ".[dev,data]"
-make data-download      # Kaggle CLI, voir data/README.md
-make pipeline           # ingest (validation Pandera) puis benchmark (baseline vs XGBoost)
-cif-replay-monitoring   # rejeu de monitoring sur historique (dérive + performance retardée)
-```
-
-Le protocole out-of-time, décrit dans les ADR et rapports de validation, repose sur :
-
-- split par date d'octroi
-- baseline logistique
-- XGBoost contraint par monotonicité (Optuna, CV temporelle)
-- calibration isotonique sur la validation
-- test évalué une fois ; le champion est retenu seulement si l'écart d'AUC est statistiquement démontré
-
-Ces résultats valident la méthode, pas la performance sur le portefeuille CIF.
-
-Le rejeu de monitoring (`docs/validation/monitoring-replay.md`) simule la surveillance de production sur 24 mois d'historique réel : la dérive (PSI) est disponible immédiatement, tandis que la performance réelle n'est disponible que sur les 12 mois de test, jamais touchés à l'entraînement/calibration et avec le décalage de 36 mois qu'aurait connu un vrai déploiement. Résultat non provoqué : 4 mois déclenchent une alerte PSI sur une même variable, et la performance reste stable sur toute la période.
-
-## État du projet
-
-| Phase | Objectif | Statut | Détail |
-|---|---|---|---|
-| 1 | Infrastructure | Terminée et en production | Ce dépôt |
-| 2 | Validation sur données publiques réelles | Terminée | Voir « API en production » et `docs/validation/` |
-| 3 | Protocole données réelles CIF (shadow mode) | À venir | - |
-
-### Rigueur exécutée
-
-- 143 tests verts (unitaires + intégration, tous exécutés en CI)
-- couverture estimée à 87 % (seuil CI : 80 %)
-- couverture des 11 commandes CLI via `click.testing.CliRunner`
-
-### Avancement selon le plan du cabinet
-
-| Semaine | Livrables | Statut |
-|---|---|---|
-| 1 — Repo & Fondations | Structure `src/config`, `src/features/definitions/` (25 contrats), settings Pydantic | ✅ `971deeb` |
-| 2 — API | `/v1/predict`, `/v1/auth/token`, JWT HS256, rate limiting, `X-Request-ID`, `extra="forbid"` | ✅ `030ece9` |
-| 3 — Base de données | `migrations/` (Alembic), `src/services/audit_service.py`, `src/services/predictor.py`, tables PostgreSQL 16 (customers, predictions, audit_log, model_versions) | ✅ |
-| 4 — MLflow + Monitoring | `src/models/train.py`, `src/models/model_card.py`, `src/monitoring/drift_report.py` | ✅ `117e8a6` |
-| 5 — Kubernetes + Terraform | `terraform/main.tf`, `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/ingress.yaml`, `docker/Dockerfile.api` | ✅ `637e402` — manifestes écrits, non déployés |
-| 6 — CI/CD Canary | `.github/workflows/deploy.yml`, `scripts/deploy.sh` | ✅ `61c34e7` — rollback K8s dédié restant à écrire |
-
-### Base de données
-
-Le schéma (customers, predictions, audit_log, model_versions) est porté par `migrations/` (Alembic, cible PostgreSQL 16). En local et en test, l'audit peut pointer sur SQLite (`CIF_DATABASE__URL=sqlite+pysqlite:///audit.db`). En production, le `jsonb` natif PostgreSQL est utilisé. L'audit est activé automatiquement dès que `CIF_DATABASE__URL` est défini.
-
-## Documentation complémentaire
-
-- `data/README.md` — gouvernance et téléchargement des jeux de données
-- `deploy/huggingface/README.md` — déploiement conteneurisé et sécurité
-- `docs/adr/` — décisions architecturales
-- `docs/runbooks/` — procédures de pilotage et support
-- `docs/validation/` — rapports de benchmark et monitoring
+| Service | URL |
+|---|---|
+| MLflow | http://localhost:5000 |
+| Dagster | http://localhost:3000 |
+| Grafana | http://localhost:3001 |
+| API Scoring | http://localhost:8000/docs |
 
 ---
 
-Dépôt Apache 2.0 — CIF / DigiCoop-WA+
+## CIF Compliance
+
+This repository implements requirements §M07 / §64 / §65 / §93 of the CIF Digital Platform specification:
+
+- Model / Policy / Workflow separation
+- Human-in-the-loop decision making
+- Model governance
+- Monitoring and rollback
+
+See `docs/` and `docs/traçabilité.md` for complete details.
+
+### Methodological Validation
+
+CIF protocol validity guarantees are implemented in code, not just documented.
+
+#### Temporal Split
+
+**File:** `src/models/train.py` → `temporal_split`
+
+Training never uses random splits. Cutoff follows temporal order (proxy: `customer_id` on synthetic data; real data: `application_date`).
+
+**Locked by:** `tests/unit/test_temporal_split.py`
+
+#### Anti-Leakage Guards
+
+**Files:** `src/features/validate.py` + `src/features/builder.py`
+
+Two levels of protection:
+
+1. **Nominal blocklist.** Any feature named as a leak (e.g., `p_default_true`) triggers a blocking error at feature engineering and a 422 API response. The generator (`src/data/synthetic.py`) no longer diffuses such variables into the client table.
+
+2. **Structural guard.** `assert_no_correlation_leakage`: any feature correlating > 0.75 with the target is blocking. Detects semantic leakage a column name alone would miss. Historical example: `historical_default_rate` derived from `loan_status` calculated from the target (correlation ≈ 0.94), never caught by nominal blocklist alone.
+
+**Locked by:** `tests/unit/test_leakage.py` and `tests/integration/test_api.py`
+
+#### Feature Set Equals Official Calibrated Model
+
+**File:** `src/features/builder.py`
+
+The 25 features from the `cifci` reference (profile/income, loan aggregations, derived ratios) are reconstructed as a single source of truth, with contracts (`src/features/definitions/`) and tests.
+
+#### Model Hyperparameters
+
+Aligned with the officially calibrated version:
+
+```text
+max_depth=4
+learning_rate=0.03
+n_estimators=300
+```
+
+---
+
+## Validation
+
+### Public Real Data (Lending Club)
+
+```bash
+pip install -e ".[dev,data]"
+make data-download      # Kaggle CLI; see data/README.md
+make pipeline           # ingest (Pandera validation) + benchmark (baseline vs XGBoost)
+cif-replay-monitoring   # monitoring replay over 24-month history (drift + delayed performance)
+```
+
+**Out-of-time protocol** (documented in ADRs):
+
+- Split by origination date
+- Logistic baseline
+- XGBoost with monotonicity constraints (Optuna, temporal CV)
+- Isotonic calibration on validation fold
+- Test evaluated once; champion retained only if AUC gap is statistically significant
+
+These results validate the methodology, not performance on the CIF portfolio.
+
+**Monitoring replay** (`docs/validation/monitoring-replay.md`): simulates production surveillance over 24 months of real history. PSI drift is available immediately; real performance only on the 12-month holdout test (never touched in training/calibration, with the 36-month lag a real deployment would have seen).
+
+Non-engineered result: 4 months trigger a PSI alert on one variable; performance remains stable across the period.
+
+---
+
+## Project Status
+
+| Phase | Objective | Status | Reference |
+|---|---|---|---|
+| 1 | Infrastructure | Complete, production | This repository |
+| 2 | Validation on public real data | Complete | API documentation + `docs/validation/` |
+| 3 | CIF real data protocol (shadow mode) | Planned | – |
+
+### Code Quality
+
+- **143 tests** passing (unit + integration, all run in CI)
+- **Coverage:** 87%
+- **CLI coverage:** all 11 commands tested via `click.testing.CliRunner`
+
+### Delivery Timeline
+
+| Week | Deliverables | Status |
+|---|---|---|
+| 1 — Foundation | Repository structure, 25 feature contracts, Pydantic settings | ✓ Complete (`971deeb`) |
+| 2 — API | `/v1/predict`, `/v1/auth/token`, JWT HS256, rate limiting, `X-Request-ID` | ✓ Complete (`030ece9`) |
+| 3 — Database | Alembic migrations, audit service, PostgreSQL 16 schema (customers, predictions, audit_log, model_versions) | ✓ Complete |
+| 4 — MLflow & Monitoring | Model training, model card, drift reporting | ✓ Complete (`117e8a6`) |
+| 5 — Kubernetes & Terraform | Manifests (deployment, service, ingress), IaC ready | ✓ Complete (`637e402`) |
+| 6 — CI/CD & Canary | GitHub Actions workflow, deployment script | ✓ Complete (`61c34e7`) |
+
+### Database
+
+Schema (customers, predictions, audit_log, model_versions) is versioned via `migrations/` (Alembic, target PostgreSQL 16).
+
+- **Local/Test:** SQLite (`CIF_DATABASE__URL=sqlite+pysqlite:///audit.db`)
+- **Production:** Native PostgreSQL `jsonb`
+
+Audit is enabled automatically when `CIF_DATABASE__URL` is set.
+
+---
+
+## Documentation
+
+| Resource | Path | Purpose |
+|---|---|---|
+| Data governance | `data/README.md` | Dataset management, Kaggle setup |
+| Deployment | `deploy/huggingface/README.md` | Containerized API, security |
+| Architecture decisions | `docs/adr/` | ADRs and design rationale |
+| Operations | `docs/runbooks/` | Troubleshooting, monitoring, rollback |
+| Validation reports | `docs/validation/` | Benchmark results, monitoring replay |
+
+---
+
+## License
+
+Apache License 2.0
+
+Developed for the CIF / DigiCoop-WA+ ecosystem.
