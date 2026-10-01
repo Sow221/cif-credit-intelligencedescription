@@ -1,90 +1,134 @@
-# CIF Credit Intelligence
+<p align="center">
+  <strong>CIF Credit Intelligence</strong><br/>
+  <em>Credit decision support platform for the CIF ecosystem</em>
+</p>
 
-![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/License-Apache%202.0-blue?logo=open-source-initiative&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![MLflow](https://img.shields.io/badge/MLflow-Tracking-0194E2?logo=mlflow&logoColor=white)
-![XGBoost](https://img.shields.io/badge/XGBoost-ML-FF6F00?logo=python&logoColor=white)
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/License-Apache%202.0-blue?logo=open-source-initiative&logoColor=white" alt="License">
+  <img src="https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/XGBoost-ML-FF6F00?logo=python&logoColor=white" alt="XGBoost">
+  <img src="https://img.shields.io/badge/Status-Production-success" alt="Status">
+</p>
 
-**Credit decision support platform for the CIF ecosystem.** Risk scoring, thin-file management, and comprehensive methodological audit.
-
-> Plateforme d'aide à la décision de crédit pour les SFD de la CIF. Scoring de risque, gestion des Thin-File, audit méthodologique complet.
+<p align="center">
+  <strong>Risk scoring, thin-file management, comprehensive methodological audit</strong><br/>
+  <em>Plateforme d'aide à la décision de crédit pour les SFD de la CIF</em>
+</p>
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [API Endpoint](#api-endpoint)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Architecture](#architecture)
-- [Technical Stack](#technical-stack)
-- [CIF Compliance](#cif-compliance)
-- [Validation](#validation)
-- [Project Status](#project-status)
-- [Documentation](#documentation)
-- [License](#license)
+| Section | Link |
+|:-------:|:---|
+| Overview | [See below](#overview) |
+| Features | [See below](#features) |
+| API | [See below](#api-endpoint) |
+| Installation | [See below](#installation) |
+| Quick Start | [See below](#quick-start) |
+| Architecture | [See below](#architecture) |
+| Technical Stack | [See below](#technical-stack) |
+| Compliance | [See below](#cif-compliance) |
+| Validation | [See below](#validation) |
+| Status | [See below](#project-status) |
+| Documentation | [See below](#documentation) |
 
 ---
 
 ## Overview
 
-| | |
-|---|---|
+A credit scoring platform engineered as a financial intelligence infrastructure following professional consulting firm standards: **reproducible, tested, instrumented, deployable**.
+
+<br/>
+
+| Key Attribute | Value |
+|:---|:---|
 | **Ecosystem** | CIF / DigiCoop-WA+ |
 | **Language** | Python 3.11 |
 | **License** | Apache 2.0 |
 | **Status** | Production |
 | **API** | https://cif-credit-intelligence.onrender.com/docs |
 
-A credit scoring platform engineered as a financial intelligence infrastructure, following professional consulting firm standards: **reproducible, tested, instrumented, deployable**.
+<br/>
 
-The prototype's ROC-AUC of **0.94** (`cif_credit_official:1.0.1`) is an experimental result on synthetic data—not a CIF benchmark. This repository contains the engineering-grade version, ready to ingest real CIF data through the V1.1 audit protocol.
+> **Note:** The prototype's ROC-AUC of **0.94** is an **experimental result on synthetic data**, not a CIF benchmark. This repository contains the **engineering-grade version**, ready to ingest real CIF data.
 
 ---
 
 ## Features
 
-- **Scoring Models**
-  - CIF Pilot (Synthetic): 25 features, experimental validation
-  - Lending Club Champion: 18 features, public-data benchmark
+<details>
+  <summary><strong>Scoring Models</strong></summary>
 
-- **Infrastructure**
-  - Stateless FastAPI serving with model registry and promotion/rollback
-  - Versioned PostgreSQL 16 schema with Alembic migrations
-  - Dagster orchestration for reproducible pipelines
+  * **CIF Pilot** (Synthetic)
+    * 25 features
+    * Experimental validation
+    * Ready for real CIF data
 
-- **Quality Assurance**
-  - 143 unit + integration tests (all in CI)
-  - 87% code coverage
-  - Anti-leakage detection (nominal + structural)
-  - Temporal split enforcement
+  * **Lending Club Champion** (Public Real Data)
+    * 18 features
+    * Validated on Kaggle dataset
+    * Methodology proof-of-concept
 
-- **Monitoring & Observability**
-  - Drift detection (Evidently + PSI)
-  - Prometheus metrics + Grafana dashboards
-  - Audit trail (`jsonb`, PostgreSQL)
+</details>
 
-- **Deployment Ready**
-  - Render (current: single instance)
-  - Kubernetes manifests (K3s + Oracle Cloud)
-  - Infrastructure-as-code (Terraform)
+<details>
+  <summary><strong>Infrastructure</strong></summary>
+
+  * **API** - Stateless FastAPI with model registry and promotion/rollback
+  * **Storage** - Versioned PostgreSQL 16 schema (Alembic migrations)
+  * **Orchestration** - Dagster for reproducible pipelines
+  * **Tracking** - MLflow + MinIO for model versioning
+
+</details>
+
+<details>
+  <summary><strong>Quality Assurance</strong></summary>
+
+  * 143 unit + integration tests (all in CI)
+  * 87% code coverage (mypy + ruff strict)
+  * Anti-leakage detection (nominal + structural)
+  * Temporal split enforcement (no random splits)
+
+</details>
+
+<details>
+  <summary><strong>Monitoring & Observability</strong></summary>
+
+  * **Drift Detection** - Evidently + PSI metrics
+  * **Metrics** - Prometheus + Grafana dashboards
+  * **Audit** - Complete PostgreSQL jsonb trail
+  * **Validation** - 24-month monitoring replay
+
+</details>
+
+<details>
+  <summary><strong>Deployment Ready</strong></summary>
+
+  * **Current** - Render (single instance, zero-cost)
+  * **Next** - Kubernetes (K3s + Oracle Cloud)
+  * **Infrastructure** - Terraform IaC (ready)
+  * **Design** - Stateless API for horizontal scaling
+
+</details>
 
 ---
 
 ## API Endpoint
 
-**Production:** https://cif-credit-intelligence.onrender.com/docs
+<p align="center">
+  <strong>Live: https://cif-credit-intelligence.onrender.com/docs</strong><br/>
+  <em>Interactive Swagger UI, directly testable</em>
+</p>
 
-Interactive Swagger UI, directly testable in-browser.
+<br/>
 
-| Model | Endpoint | Features | Data Source |
-|---|---|---|---|
+| Model | Endpoint | Features | Data |
+|:---|:---|:---:|:---|
 | **CIF Pilot** | `/v1/predict` | 25 | Synthetic |
-| **Lending Club** | `/v1/lending-club/score` | 18 | Public real data |
+| **Lending Club** | `/v1/lending-club/score` | 18 | Public Real |
 
 ---
 
@@ -93,24 +137,35 @@ Interactive Swagger UI, directly testable in-browser.
 ### Requirements
 
 ```bash
-- Python 3.11
-- pip / poetry
-- PostgreSQL 16 (optional; SQLite for dev)
+Python 3.11+
+pip or poetry
+PostgreSQL 16 (optional: SQLite for dev)
 ```
 
 ### Setup
 
+**Step 1: Clone repository**
+
 ```bash
-# 1. Clone the repository
 git clone https://github.com/Sow221/cif-credit-intelligencedescription.git
 cd cif-credit-intelligencedescription
+```
 
-# 2. Create a virtual environment
+**Step 2: Create virtual environment**
+
+```bash
 python -m venv .venv
-source .venv/bin/activate           # Unix/macOS
-.venv\Scripts\activate              # Windows
 
-# 3. Install dependencies
+# On Unix/macOS:
+source .venv/bin/activate
+
+# On Windows:
+.venv\Scripts\activate
+```
+
+**Step 3: Install dependencies**
+
+```bash
 pip install -e ".[dev]"
 ```
 
@@ -118,39 +173,36 @@ pip install -e ".[dev]"
 
 ## Quick Start
 
-### Synthetic Data Pipeline
+### Option 1: Synthetic Data Pipeline
 
 ```bash
-# Generate synthetic data
-cif-generate
-
-# Train model (MLflow tracking)
-cif-train
-
-# Evaluate
-cif-evaluate
+cif-generate      # Generate synthetic data
+cif-train         # Train model (MLflow tracking)
+cif-evaluate      # Evaluate model
 ```
 
-### Full Stack (Docker)
+### Option 2: Full Stack (Docker)
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d
 ```
 
+Services will be available at:
+
 | Service | URL |
-|---|---|
+|:---|:---|
 | **MLflow** | http://localhost:5000 |
 | **Dagster** | http://localhost:3000 |
 | **Grafana** | http://localhost:3001 |
 | **API** | http://localhost:8000/docs |
 
-### Public Data Validation (Lending Club)
+### Option 3: Public Data Validation
 
 ```bash
 pip install -e ".[dev,data]"
-make data-download      # Kaggle CLI
+make data-download      # Download from Kaggle
 make pipeline           # Ingest + benchmark
-cif-replay-monitoring   # Monitor over 24-month history
+cif-replay-monitoring   # Monitoring replay (24 months)
 ```
 
 ---
@@ -162,28 +214,28 @@ cif-replay-monitoring   # Monitor over 24-month history
 ```text
 src/
 ├── api/                    FastAPI application
-├── config/                 Pydantic + Hydra settings
-├── data/                   Synthetic generator
+├── config/                 Pydantic + Hydra configuration
+├── data/                   Synthetic data generator
 ├── evaluation/             Metrics, calibration, fairness
 ├── features/
-│   ├── definitions/        One file per feature (25 total)
+│   ├── definitions/        25 feature contracts
 │   └── builder.py          Centralized computation
-├── models/                 XGBoost training + model_card
+├── models/                 XGBoost + model_card
 ├── monitoring/             Drift (Evidently), Prometheus
 ├── services/               decision_engine, audit_service
 ├── cli/                    CLI commands (cif-*)
 └── utils/                  Logging, reproducibility
 
-migrations/                 Alembic (PostgreSQL schema)
-pipelines/                  Dagster definitions
-conf/                       Hydra YAML config
+migrations/                 Alembic (PostgreSQL schema versioning)
+pipelines/                  Dagster assets and jobs
+conf/                       Hydra YAML configuration
 data/                       Datasets, model cards
 deploy/                     Deployment artifacts
 docker/                     Dockerfiles
-infra/                      Local stack (Docker Compose)
-k8s/ terraform/             K3s + IaC (ready, inactive)
-tests/                      Unit + integration tests
-docs/                       ADRs, runbooks, validation
+infra/                      Docker Compose stack
+k8s/ terraform/             Kubernetes + IaC (ready)
+tests/                      Unit and integration tests
+docs/                       ADRs, runbooks, validation reports
 ```
 
 ---
@@ -191,136 +243,169 @@ docs/                       ADRs, runbooks, validation
 ## Technical Stack
 
 | Layer | Tool | Purpose |
-|---|---|---|
-| **Language** | Python 3.11 (mypy, ruff) | Type safety, code quality |
-| **Config** | Pydantic v2 + Hydra | Settings & schema management |
-| **Orchestration** | Dagster | Asset versioning, lineage |
+|:---|:---|:---|
+| **Language** | Python 3.11 (mypy strict, ruff) | Type safety, code quality |
+| **Configuration** | Pydantic v2 + Hydra | Settings management |
+| **Orchestration** | Dagster | Versioned assets, lineage |
 | **ML Registry** | MLflow (Postgres + MinIO) | Model tracking, promotion |
-| **Data Quality** | Pandera + Pydantic v2 | Blocking contracts |
+| **Data Quality** | Pandera + Pydantic v2 | Contracts, validation |
 | **Data Versioning** | DVC | Reproducible pipelines |
 | **Monitoring** | Evidently + Prometheus + Grafana | Drift, observability |
 | **Serving** | FastAPI | HTTP API, inference |
 | **Database** | PostgreSQL 16 + Alembic | Audit trail, versioning |
 | **CI/CD** | GitHub Actions | Lint → test → build → promote |
-| **Deployment** | Render (current) / K8s | Container orchestration |
+| **Deployment** | Render / Kubernetes | Container orchestration |
 
 ---
 
 ## CIF Compliance
 
-Implements **§M07 / §64 / §65 / §93** of the CIF Digital Platform specification:
+Implements **M07 / 64 / 65 / 93** of the CIF Digital Platform specification:
 
-- ✅ Model / Policy / Workflow separation
-- ✅ Human-in-the-loop decision making
-- ✅ Model governance
-- ✅ Monitoring & rollback
+* Model / Policy / Workflow separation
+* Human-in-the-loop decision making
+* Model governance and versioning
+* Monitoring and rollback
 
 ### Methodological Validation
 
 All CIF protocol guarantees are **implemented in code**, not just documented.
 
-#### Temporal Split Enforcement
+<details>
+  <summary><strong>Temporal Split Enforcement</strong></summary>
 
-**File:** `src/models/train.py` → `temporal_split`
+  **File:** `src/models/train.py` → `temporal_split`
 
-Training never uses random splits; cutoff follows temporal order.
+  Training never uses random splits; cutoff follows temporal order.
 
-**Locked by:** `tests/unit/test_temporal_split.py`
+  **Locked by:** `tests/unit/test_temporal_split.py`
 
-#### Anti-Leakage Guards (2 Levels)
+</details>
 
-**Files:** `src/features/validate.py` + `src/features/builder.py`
+<details>
+  <summary><strong>Anti-Leakage Guards (2 Levels)</strong></summary>
 
-1. **Nominal blocklist:** Any leak-named feature (e.g., `p_default_true`) triggers a blocking error and a 422 API response.
-2. **Structural guard:** Features correlating > 0.75 with the target are blocked. Detects semantic leakage (e.g., `historical_default_rate` ≈ 0.94 correlation—never caught by name alone).
+  **Files:** `src/features/validate.py` + `src/features/builder.py`
 
-**Locked by:** `tests/unit/test_leakage.py` + `tests/integration/test_api.py`
+  1. **Nominal blocklist** - Any leak-named feature (e.g., `p_default_true`) triggers blocking error + 422 response
+  2. **Structural guard** - Features correlating > 0.75 with target are blocked
 
-#### Feature-Set = Official Model
+  Example: `historical_default_rate` (correlation ≈ 0.94) never caught by name alone.
 
-**File:** `src/features/builder.py`
+  **Locked by:** `tests/unit/test_leakage.py` + `tests/integration/test_api.py`
 
-The 25 `cifci` features (profile, income, loan aggregations, derived ratios) are reconstructed as a single source of truth with contracts.
+</details>
 
-#### Model Hyperparameters
+<details>
+  <summary><strong>Feature-Set = Official Model</strong></summary>
 
-```text
-max_depth=4
-learning_rate=0.03
-n_estimators=300
-```
+  **File:** `src/features/builder.py`
+
+  The 25 `cifci` features are reconstructed as a single source of truth with contracts.
+
+</details>
+
+<details>
+  <summary><strong>Model Hyperparameters</strong></summary>
+
+  ```text
+  max_depth=4
+  learning_rate=0.03
+  n_estimators=300
+  ```
+
+</details>
 
 ---
 
 ## Validation
 
-### Public Real Data (Lending Club)
+<details>
+  <summary><strong>Public Real Data (Lending Club)</strong></summary>
 
-**Out-of-time protocol** (see ADRs for full details):
+  **Out-of-time protocol:**
 
-- Split by origination date
-- Logistic baseline + XGBoost (monotonicity constraints)
-- Isotonic calibration on validation
-- Champion retained only if AUC gap is **statistically significant**
+  * Split by origination date
+  * Logistic baseline + XGBoost (monotonicity constraints)
+  * Isotonic calibration on validation
+  * Champion retained only if AUC gap is statistically significant
 
-**Result:** Validates **methodology**, not CIF portfolio performance.
+  **Result:** Validates methodology, not CIF portfolio performance.
 
-### Monitoring Replay
+</details>
 
-Simulates 24-month production surveillance over real history:
+<details>
+  <summary><strong>Monitoring Replay (24 Months)</strong></summary>
 
-- PSI drift: available immediately
-- Real performance: 12-month holdout only (never touched in training)
+  Simulates production surveillance:
 
-**Finding:** 4 months trigger a PSI alert on one variable; performance remains stable across the period.
+  * **PSI drift** - Available immediately
+  * **Real performance** - 12-month holdout (never touched in training)
+
+  **Finding:** 4 months trigger PSI alert; performance stable across period.
+
+</details>
 
 ---
 
 ## Project Status
 
 | Phase | Objective | Status | Reference |
-|---|---|---|---|
-| **1** | Infrastructure | ✅ Complete, Production | This repo |
-| **2** | Public data validation | ✅ Complete | `docs/validation/` |
-| **3** | CIF real data (shadow mode) | 🔄 Planned | – |
+|:---:|:---|:---:|:---|
+| **1** | Infrastructure | Complete | This repository |
+| **2** | Public data validation | Complete | `docs/validation/` |
+| **3** | CIF real data (shadow mode) | Planned | – |
 
-### Code Quality
+### Code Quality Metrics
 
-- **143 tests** (unit + integration, all in CI)
-- **Coverage:** 87%
-- **CLI:** all 11 commands tested via `click.testing.CliRunner`
+| Metric | Value |
+|:---|:---:|
+| **Tests** | 143 (unit + integration) |
+| **Coverage** | 87% |
+| **CI Status** | All passing |
 
 ### Delivery Timeline
 
 | Week | Deliverables | Status |
-|---|---|---|
-| 1 | Foundation (25 contracts, Pydantic settings) | ✓ `971deeb` |
-| 2 | API (`/v1/predict`, JWT, rate limiting) | ✓ `030ece9` |
-| 3 | Database (Alembic, PostgreSQL 16 schema) | ✓ Complete |
-| 4 | MLflow + Monitoring (train, drift) | ✓ `117e8a6` |
-| 5 | Kubernetes + Terraform (manifests, IaC) | ✓ `637e402` |
-| 6 | CI/CD Canary (GitHub Actions) | ✓ `61c34e7` |
+|:---:|:---|:---:|
+| 1 | Foundation (25 contracts, Pydantic) | Complete (`971deeb`) |
+| 2 | API (`/v1/predict`, JWT, rate limiting) | Complete (`030ece9`) |
+| 3 | Database (Alembic, PostgreSQL 16) | Complete |
+| 4 | MLflow + Monitoring (train, drift) | Complete (`117e8a6`) |
+| 5 | Kubernetes + Terraform (manifests, IaC) | Complete (`637e402`) |
+| 6 | CI/CD Canary (GitHub Actions) | Complete (`61c34e7`) |
 
 ---
 
 ## Documentation
 
 | Resource | Path | Purpose |
-|---|---|---|
+|:---|:---|:---|
 | **Data Governance** | `data/README.md` | Dataset management, Kaggle setup |
 | **Deployment** | `deploy/huggingface/README.md` | Containerized API, security |
-| **Architecture** | `docs/adr/` | ADRs, design rationale |
-| **Operations** | `docs/runbooks/` | Troubleshooting, rollback |
-| **Validation** | `docs/validation/` | Benchmark results, monitoring |
+| **Architecture Decisions** | `docs/adr/` | ADRs and design rationale |
+| **Operations** | `docs/runbooks/` | Troubleshooting and rollback |
+| **Validation Reports** | `docs/validation/` | Benchmarks and monitoring |
 
 ---
 
 ## License
 
-**Apache License 2.0**
+<p align="center">
+  <strong>Apache License 2.0</strong><br/>
+  Developed for the <strong>CIF / DigiCoop-WA+</strong> ecosystem
+</p>
 
-Developed for the CIF / DigiCoop-WA+ ecosystem.
+<br/>
+
+<p align="center">
+  <a href="https://github.com/Sow221/cif-credit-intelligencedescription/tree/main/docs"><strong>Full Documentation</strong></a> · 
+  <a href="https://github.com/Sow221/cif-credit-intelligencedescription/issues"><strong>Issues</strong></a> · 
+  <a href="https://github.com/Sow221/cif-credit-intelligencedescription/discussions"><strong>Discussions</strong></a>
+</p>
 
 ---
 
-**Questions?** See the [full documentation](https://github.com/Sow221/cif-credit-intelligencedescription/tree/main/docs) or open an [issue](https://github.com/Sow221/cif-credit-intelligencedescription/issues).
+<p align="center">
+  <em>Made with care for credit risk excellence</em>
+</p>
